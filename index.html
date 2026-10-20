@@ -195,7 +195,7 @@
         <div class="text-xs font-bold uppercase tracking-widest text-cyan-400 mono mb-1">♪ ♫ Ultrasonic FSK Link ♪ ♫</div>
         <h2 class="text-2xl font-extrabold text-white">Pair the Phones</h2>
         <p class="text-xs text-slate-300 mt-1.5 leading-relaxed">
-          Open this page on both phones and tap <span class="text-cyan-300 font-semibold">Play on two phones</span>. Turn volume all the way up. Lay the phones top-to-top, a few centimetres apart. Tap <span class="text-cyan-300 font-semibold">Call</span> on one phone — the other answers automatically.
+          Open this page on both phones and tap <span class="text-cyan-300 font-semibold">Play on two phones</span>. Turn volume all the way up (and switch off silent mode). Lay the phones top-to-top, a few centimetres apart. Tap <span class="text-cyan-300 font-semibold">Call</span> on one phone — the other answers automatically.
         </p>
 
         <!-- Live Ultrasonic Spectrum Analyzer -->
@@ -205,7 +205,7 @@
             <span id="pairMicState" class="text-amber-300">Starting microphone…</span>
           </div>
           <canvas id="spectrumCanvas" width="360" height="90" class="w-full h-24 bg-slate-950 rounded-lg border border-slate-800/80"></canvas>
-          <div class="grid grid-cols-3 gap-2 mt-2 text-left">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 text-left">
             <div class="p-1.5 rounded bg-slate-950/90 border border-slate-800/80">
               <div class="text-[9px] text-slate-500 uppercase">Peak Freq</div>
               <div id="diagPeakFreq" class="text-xs font-bold text-cyan-300 mono">20100 Hz</div>
@@ -218,6 +218,10 @@
               <div class="text-[9px] text-slate-500 uppercase">Modem Frame</div>
               <div id="diagFrameStatus" class="text-xs font-bold text-emerald-300 mono">Listening</div>
             </div>
+            <div class="p-1.5 rounded bg-slate-950/90 border border-slate-800/80">
+              <div class="text-[9px] text-slate-500 uppercase">Mic Signal</div>
+              <div id="diagSignalLevel" class="text-xs font-bold text-slate-400 mono">READY</div>
+            </div>
           </div>
         </div>
 
@@ -226,11 +230,11 @@
           <button id="btnCallOtherPhone" type="button" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-cyan-500/20 transition">
             📣 Call the other phone (Send &gt;20kHz Handshake)
           </button>
+          <button id="btnPairSimulateAnswer" type="button" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-md transition">
+            ⚡ Start 2-Phone Duel Immediately (Skip Handshake)
+          </button>
           <button id="btnTestSpeakerMic" type="button" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs transition">
             🔊 Test this phone's speaker + mic (&gt;20 kHz Loopback)
-          </button>
-          <button id="btnPairSimulateAnswer" type="button" class="w-full py-2 px-4 rounded-xl bg-fuchsia-950/50 hover:bg-fuchsia-900/60 border border-fuchsia-500/40 text-fuchsia-200 font-semibold text-xs transition">
-            ⚡ Simulate Second Phone Answer (Test Duel Here)
           </button>
           <button id="btnPairBack" type="button" class="w-full py-2 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold text-xs transition">
             ← Back
@@ -441,11 +445,164 @@
         this.presetKey = 'ultra48';
         this.role = 'A';
         this.seqCounter = 1;
+        this.lastRxSeq = -1;
         this.pendingAckTimer = null;
         this.pendingRetries = 0;
+        this.onPacket = null;
         this.sfxEnabled = false;
         this.practiceChirps = true;
         this.lastPeakFreq = 20100;
+        this.rxBufferSymbols = [];
+        this.lastDetectedTone = -1;
+        this.lastSymbolTime = 0;
+        this._demodActive = false;
+      }
+
+      startDemodulator() {
+        if (this._demodActive) return;
+        this._demodActive = true;
+        let rxSymbols = [];
+        let lastTone = -1;
+        let toneHold = 0;
+        let prevTone = 15;
+        let reading = false;
+        let expectedBytes = 0;
+        let rxNibbles = [];
+
+        const step = () => {
+          if (!this._demodActive) return;
+          if (this.analyser && this.ctx && this.ctx.state === 'running') {
+            const p = this.getPreset();
+            const rxBase = this.getRxBandBase();
+            const binHz = this.ctx.sampleRate / this.analyser.fftSize;
+            const bins = new Uint8Array(this.analyser.frequencyBinCount);
+            this.analyser.getByteFrequencyData(bins);
+
+            let maxVal = 0;
+            let peakTone = -1;
+            for (let t = 0; t < 16; t++) {
+              const f = rxBase + t * p.stepHz;
+              const bIdx = Math.round(f / binHz);
+              const val = (bins[bIdx - 1] + bins[bIdx] * 2 + bins[bIdx + 1]) / 4;
+              if (val > maxVal) {
+                maxVal = val;
+                peakTone = t;
+              }
+            }
+
+            const diagSignal = document.getElementById('diagSignalLevel');
+            if (diagSignal) {
+              diagSignal.textContent = maxVal > 35 ? (maxVal > 70 ? 'STRONG (' + Math.round(maxVal) + ')' : 'OK (' + Math.round(maxVal) + ')') : 'QUIET (' + Math.round(maxVal) + ')';
+              diagSignal.className = maxVal > 35 ? 'text-xs font-bold text-emerald-300 mono' : 'text-xs font-bold text-slate-400 mono';
+            }
+
+            if (maxVal > 38 && peakTone >= 0) {
+              if (peakTone === lastTone) {
+                toneHold++;
+                if (toneHold === 2) {
+                  rxSymbols.push(peakTone);
+                  if (rxSymbols.length > 40) rxSymbols.shift();
+
+                  const n = rxSymbols.length;
+                  if (!reading) {
+                    if (n >= 4 && rxSymbols[n-4] === 0 && rxSymbols[n-3] === 15 && rxSymbols[n-2] === 0 && rxSymbols[n-1] === 15) {
+                      reading = true;
+                      rxNibbles = [];
+                      prevTone = 15;
+                    }
+                  } else {
+                    const t1 = peakTone;
+                    const diffNibble = (t1 - prevTone - 1 + 16) & 0x0f;
+                    prevTone = t1;
+                    rxNibbles.push(diffNibble);
+
+                    if (rxNibbles.length >= 2 && (rxNibbles.length % 2) === 0) {
+                      const byteIdx = (rxNibbles.length / 2) - 1;
+                      const byteVal = (rxNibbles[byteIdx * 2] << 4) | rxNibbles[byteIdx * 2 + 1];
+                      if (byteIdx === 0) {
+                        const pktType = byteVal;
+                        if (pktType === PKT_TYPES.HELLO || pktType === PKT_TYPES.HELLO_ACK) expectedBytes = 3;
+                        else if (pktType === PKT_TYPES.BALL_CROSS) expectedBytes = 6;
+                        else if (pktType === PKT_TYPES.BOMB_DROP) expectedBytes = 3;
+                        else if (pktType === PKT_TYPES.ACK) expectedBytes = 2;
+                        else expectedBytes = 4;
+                      }
+
+                      if (byteIdx + 1 === expectedBytes + 1) {
+                        reading = false;
+                        const fullBytes = new Uint8Array(expectedBytes + 1);
+                        for (let k = 0; k < expectedBytes + 1; k++) {
+                          fullBytes[k] = (rxNibbles[k * 2] << 4) | rxNibbles[k * 2 + 1];
+                        }
+                        const payload = fullBytes.slice(0, expectedBytes);
+                        const expectedCrc = fullBytes[expectedBytes];
+                        if (crc8(payload) === expectedCrc) {
+                          this.handleDecodedPacket(payload);
+                        }
+                        rxNibbles = [];
+                      }
+                    }
+                  }
+                }
+              } else {
+                lastTone = peakTone;
+                toneHold = 1;
+              }
+            } else {
+              toneHold = 0;
+            }
+          }
+          requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      }
+
+      handleDecodedPacket(pkt) {
+        if (!pkt || pkt.length < 2) return;
+        const type = pkt[0];
+        const seq = pkt[1];
+
+        const fStatus = document.getElementById('diagFrameStatus');
+        if (fStatus) fStatus.textContent = 'RX PKT #' + type;
+
+        if (type === PKT_TYPES.HELLO) {
+          if (state.mode === 'pair') {
+            this.role = 'B';
+            showToast('🎉 HELLO RECEIVED! ANSWERING...');
+            const ackPkt = new Uint8Array([PKT_TYPES.HELLO_ACK, seq, state.targetPoints]);
+            this.transmitFrame(ackPkt, false);
+            setTimeout(() => { startMatch('duel'); }, 300);
+          }
+        } else if (type === PKT_TYPES.HELLO_ACK) {
+          if (state.mode === 'pair') {
+            this.role = 'A';
+            showToast('🎉 PHONE ANSWERED! STARTING!');
+            setTimeout(() => { startMatch('duel'); }, 200);
+          }
+        } else if (type === PKT_TYPES.BALL_CROSS) {
+          if (!state.ballInYourCourt && (state.mode === 'duel' || state.mode === 'practice' || state.mode === 'sim')) {
+            this.acknowledgeSeq(seq);
+            const ackPkt = new Uint8Array([PKT_TYPES.ACK, seq]);
+            this.transmitFrame(ackPkt, false);
+
+            const normX = pkt[2] / 255.0;
+            const spin = ((pkt[4] & 0x0f) / 30.0) - 0.25;
+            const smash = (pkt[4] & 0x80) !== 0;
+            const gem = (pkt[5] >> 5) & 0x07;
+            triggerIncomingBallFromPortal(gem, smash, spin, normX);
+          }
+        } else if (type === PKT_TYPES.BOMB_DROP) {
+          if (state.mode === 'duel' || state.mode === 'sim') {
+            const normX = pkt[2] / 255.0;
+            state.fallingBomb = {
+              x: Math.max(30, Math.min(state.width - 30, normX * state.width)),
+              y: 20, vy: 4.3, r: 13
+            };
+            showToast('💣 INCOMING BOMB!');
+          }
+        } else if (type === PKT_TYPES.ACK) {
+          this.acknowledgeSeq(seq);
+        }
       }
 
       getPreset() {
@@ -494,6 +651,7 @@
             this.analyser.fftSize = 8192; // ~5.86 Hz per bin at 48 kHz
             this.analyser.smoothingTimeConstant = 0.05;
             source.connect(this.analyser);
+            this.startDemodulator();
             const micState = document.getElementById('pairMicState');
             if (micState) {
               micState.textContent = 'Mic Active (Raw DSP Off)';
@@ -519,6 +677,11 @@
       getTxBandBase() {
         const p = this.getPreset();
         return this.role === 'A' ? p.bandABase : p.bandBBase;
+      }
+
+      getRxBandBase() {
+        const p = this.getPreset();
+        return this.role === 'A' ? p.bandBBase : p.bandABase;
       }
 
       async transmitFrame(bytes, expectAck = false, onAckTimeout = null) {
@@ -1437,7 +1600,7 @@
     });
 
     document.getElementById('btnPairSimulateAnswer').addEventListener('click', async () => {
-      await modem.initAudio(false);
+      await modem.initAudio(true);
       startMatch('duel');
     });
 
