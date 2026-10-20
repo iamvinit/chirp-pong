@@ -54,7 +54,7 @@
           <span class="font-black tracking-tight text-sm text-cyan-400">CHIRP PONG</span>
           <span id="hudBandBadge" class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 mono">&gt;20kHz FSK</span>
         </div>
-        <div id="hudStatusText" class="text-[11px] text-slate-400 mono truncate max-w-[180px] sm:max-w-[240px]">Standby • Silent Ultrasonic</div>
+        <div id="hudStatusText" class="text-[11px] text-slate-400 mono truncate max-w-[180px] sm:max-w-[240px]">Standby • Modem Ready</div>
       </div>
     </div>
 
@@ -80,7 +80,7 @@
     <div class="w-full px-3 py-1 bg-slate-950/70 border-b border-slate-900 flex items-center justify-between text-[11px] mono text-slate-400 z-10">
       <div class="flex items-center gap-2">
         <span class="inline-block w-2 h-2 rounded-full bg-emerald-400" id="modemLed"></span>
-        <span id="modemFreqLabel">TX/RX: 20.10–23.10 kHz</span>
+        <span id="modemFreqLabel">Carrier: 1.40–4.97 kHz</span>
       </div>
       <div class="flex items-center gap-2">
         <span id="modemAckLabel">ACK: OK</span>
@@ -115,7 +115,7 @@
 
       <!-- Toast / Banner notification -->
       <div id="courtToast" class="hidden absolute top-6 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-slate-900/95 border border-cyan-500/50 text-cyan-200 text-xs font-bold tracking-wide shadow-lg pointer-events-none z-20 mono">
-        ULTRASONIC CHIRP SENT
+        CHIRP SENT
       </div>
     </div>
 
@@ -123,14 +123,14 @@
     <section id="screenTitle" class="custom-scroll absolute inset-0 z-30 bg-[#070913]/95 backdrop-blur-md flex flex-col items-center justify-start p-5 text-center">
       <div class="w-full max-w-md my-auto py-3 flex flex-col items-center">
         <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-fuchsia-500/15 border border-fuchsia-500/40 text-fuchsia-300 text-xs font-semibold mb-3 mono">
-          <span>🦇 ULTRASONIC &gt;20 kHz EDITION</span>
+          <span>🦇 AUDIO &amp; ULTRASONIC MODEM</span>
         </div>
 
         <h1 class="text-4xl sm:text-5xl font-black tracking-tight bg-gradient-to-r from-cyan-400 via-sky-200 to-fuchsia-400 bg-clip-text text-transparent">
           CHIRP PONG
         </h1>
         <p class="text-sm text-slate-300 mt-1.5 max-w-xs">
-          Two phones. One ball. Carried between them by <span class="text-cyan-300 font-semibold">inaudible &gt;20 kHz ultrasound</span>.
+          Two phones. One ball. Carried between them by <span class="text-cyan-300 font-semibold">acoustic sound chirps</span>.
         </p>
 
         <!-- Primary Action Buttons -->
@@ -166,25 +166,25 @@
           </div>
         </div>
 
-        <!-- Ultrasonic Carrier Band Selector -->
+        <!-- Carrier Frequency Selector -->
         <div class="w-full mt-3 p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-left">
           <div class="flex items-center justify-between mb-1.5">
             <label for="selectFreqBand" class="text-xs font-bold uppercase tracking-wider text-fuchsia-300">Modem Carrier Band</label>
-            <span id="badgeInaudible" class="text-[10px] mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Silent to Humans</span>
+            <span id="badgeInaudible" class="text-[10px] mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Audible Chirps</span>
           </div>
           <select id="selectFreqBand" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 mono focus:outline-none focus:border-cyan-400">
-            <option value="ultra48" selected>Strict Ultrasonic &gt;20 kHz (20.1–23.1 kHz @ 48kHz SR)</option>
-            <option value="ultra44">44.1kHz-Safe Ultrasonic &gt;20 kHz (20.05–21.75 kHz)</option>
-            <option value="nearUltra">Near-Ultrasonic Fallback (17.5–19.9 kHz • Phone Mic Safe)</option>
-            <option value="audible">Original Audible FSK (1.5–3.9 kHz • Audible Chirps)</option>
+            <option value="audible" selected>Original Audible FSK (1.4–5.0 kHz • Guaranteed on all phones)</option>
+            <option value="ultra48">Strict Ultrasonic &gt;20 kHz (20.15–23.60 kHz • Silent to Humans)</option>
+            <option value="nearUltra">Near-Ultrasonic (17.5–19.9 kHz • Phone Safe Ultrasonic)</option>
+            <option value="ultra44">44.1kHz-Safe Ultrasonic &gt;20 kHz (20.05–21.70 kHz)</option>
           </select>
           <p id="freqBandHint" class="text-[11px] text-slate-400 mt-2 leading-relaxed">
-            Differential 16-FSK with clocked symbol sampling, CRC-8, and stop-and-wait ACK/retry shifted above 20,000 Hz so humans hear nothing while the machine decodes via FFT.
+            Uses 1024-point FFT with 50ms symbols matching physical acoustic propagation. Works across iOS, Android, and laptops.
           </p>
         </div>
 
         <p class="text-[11px] text-slate-500 mt-4 leading-normal">
-          No Wi-Fi, Bluetooth, or accounts. The two phones talk by chirping ultrasonic FSK packets through the speaker and microphone.
+          No Wi-Fi, Bluetooth, or accounts. The two phones talk by chirping FSK packets through the speaker and microphone.
         </p>
       </div>
     </section>
@@ -192,7 +192,7 @@
     <!-- TWO-PHONE PAIRING SCREEN OVERLAY -->
     <section id="screenPair" class="custom-scroll hidden absolute inset-0 z-30 bg-[#070913]/95 backdrop-blur-md flex flex-col items-center justify-start p-4">
       <div class="w-full max-w-md my-auto py-2 flex flex-col items-center text-center">
-        <div class="text-xs font-bold uppercase tracking-widest text-cyan-400 mono mb-1">♪ ♫ Ultrasonic &amp; Audio FSK Link ♪ ♫</div>
+        <div class="text-xs font-bold uppercase tracking-widest text-cyan-400 mono mb-1">♪ ♫ Acoustic &amp; Ultrasonic FSK Link ♪ ♫</div>
         <h2 class="text-2xl font-extrabold text-white">Pair Two Phones</h2>
         <p class="text-xs text-slate-300 mt-1 leading-relaxed">
           Place phones top-to-top (2–5 cm apart). Turn volume to <strong>100%</strong> and switch <strong>Silent Mode / Mute OFF</strong>.
@@ -268,7 +268,7 @@
         </div>
 
         <p class="text-xs text-slate-300 leading-relaxed">
-          Each phone is one half of the court. The top edge of your screen is a <span class="text-cyan-400 font-semibold">portal</span>: the ball flies through it, your phone chirps an ultrasonic (&gt;20 kHz) 16-FSK packet across, and the ball bursts out of the top of the other phone. Humans won't hear the carrier tones — only the machine's microphone FFT decoder picks them up.
+          Each phone is one half of the court. The top edge of your screen is a <span class="text-cyan-400 font-semibold">portal</span>: the ball flies through it, your phone chirps an audio/ultrasonic 16-FSK packet across, and the ball bursts out of the top of the other phone.
         </p>
 
         <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
@@ -320,7 +320,7 @@
           Arcade SFX: OFF (Pure Silent Mode)
         </button>
         <button id="btnTogglePracticeChirps" type="button" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition">
-          Ultrasonic Chirps in Practice: ON
+          Chirps in Practice: ON
         </button>
         <button id="btnMenuQuit" type="button" class="w-full py-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 text-rose-300 border border-rose-800/60 font-bold text-xs transition">
           Quit to title
@@ -348,52 +348,52 @@
 
   <script>
     // =========================================================================
-    // ULTRASONIC DIFFERENTIAL 16-FSK MODEM (>20 kHz)
+    // MODEM CONSTANTS & DIFFERENTIAL 16-FSK CODEC
     // =========================================================================
     const BAND_PRESETS = {
-      ultra48: {
-        name: 'Strict >20 kHz (48kHz SR)',
-        shortBadge: '>20kHz FSK',
-        rangeLabel: '20.10–22.88 kHz',
+      audible: {
+        name: 'Original Audible FSK (1.4–5.0 kHz)',
+        shortBadge: '1.4–5.0kHz',
+        rangeLabel: '1.40–4.97 kHz',
         preferredSampleRate: 48000,
-        bandABase: 20100,
-        bandBBase: 21600,
-        stepHz: 85,
-        symbolMs: 28,
-        inaudible: true
-      },
-      ultra44: {
-        name: '44.1kHz-Safe >20 kHz',
-        shortBadge: '>20kHz (44.1k)',
-        rangeLabel: '20.05–21.70 kHz',
-        preferredSampleRate: 44100,
-        bandABase: 20050,
-        bandBBase: 20950,
-        stepHz: 50,
-        symbolMs: 36,
-        inaudible: true
+        bandABase: 1406,
+        bandBBase: 3375,
+        stepHz: 94,
+        symbolMs: 50,
+        inaudible: false
       },
       nearUltra: {
-        name: 'Near-Ultrasonic (17.5–19.9 kHz)',
+        name: 'Near-Ultrasonic (17.5–19.9 kHz • Phone Safe)',
         shortBadge: '17.5–19.9kHz',
         rangeLabel: '17.50–19.90 kHz',
         preferredSampleRate: 48000,
         bandABase: 17500,
         bandBBase: 18750,
         stepHz: 75,
-        symbolMs: 30,
+        symbolMs: 50,
         inaudible: true
       },
-      audible: {
-        name: 'Audible FSK (1.5–3.9 kHz)',
-        shortBadge: '1.5–3.9kHz',
-        rangeLabel: '1.50–3.90 kHz',
+      ultra48: {
+        name: 'Strict Ultrasonic >20 kHz (48kHz SR)',
+        shortBadge: '>20kHz FSK',
+        rangeLabel: '20.15–23.60 kHz',
         preferredSampleRate: 48000,
-        bandABase: 1500,
-        bandBBase: 2750,
-        stepHz: 75,
-        symbolMs: 28,
-        inaudible: false
+        bandABase: 20156,
+        bandBBase: 22031,
+        stepHz: 94,
+        symbolMs: 50,
+        inaudible: true
+      },
+      ultra44: {
+        name: '44.1kHz-Safe Ultrasonic >20 kHz',
+        shortBadge: '>20kHz (44.1k)',
+        rangeLabel: '20.05–21.70 kHz',
+        preferredSampleRate: 44100,
+        bandABase: 20050,
+        bandBBase: 20950,
+        stepHz: 50,
+        symbolMs: 50,
+        inaudible: true
       }
     };
 
@@ -437,7 +437,7 @@
       payloadWithCrc.set(bytes, 0);
       payloadWithCrc[bytes.length] = crc8(bytes);
 
-      const symbols = [0, 15, 0, 15];
+      const symbols = [0, 15, 0, 15]; // preamble sync
       let prevTone = 15;
       for (let i = 0; i < payloadWithCrc.length; i++) {
         const hi = (payloadWithCrc[i] >> 4) & 0x0f;
@@ -455,7 +455,7 @@
         this.ctx = null;
         this.analyser = null;
         this.micStream = null;
-        this.presetKey = 'ultra48';
+        this.presetKey = 'audible'; // default to Audible for guaranteed pairing
         this.role = 'A';
         this.seqCounter = 1;
         this.lastRxSeq = -1;
@@ -464,12 +464,12 @@
         this.beaconTimer = null;
         this.sfxEnabled = false;
         this.practiceChirps = true;
-        this.lastPeakFreq = 20100;
+        this.lastPeakFreq = 1406;
         this._demodActive = false;
       }
 
       getPreset() {
-        return BAND_PRESETS[this.presetKey] || BAND_PRESETS.ultra48;
+        return BAND_PRESETS[this.presetKey] || BAND_PRESETS.audible;
       }
 
       getTxBandBase() {
@@ -499,6 +499,14 @@
           try { await this.ctx.resume(); } catch (e) {}
         }
 
+        try {
+          const buf = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+          const src = this.ctx.createBufferSource();
+          src.buffer = buf;
+          src.connect(this.ctx.destination);
+          src.start(0);
+        } catch (e) {}
+
         const sr = this.ctx.sampleRate || 48000;
         const srLabel = document.getElementById('modemSrLabel');
         if (srLabel) srLabel.textContent = (sr / 1000).toFixed(1) + ' kHz';
@@ -518,24 +526,32 @@
               audio: {
                 echoCancellation: false,
                 noiseSuppression: false,
-                autoGainControl: false,
-                sampleRate: preset.preferredSampleRate
+                autoGainControl: false
               }
             });
+          } catch (e1) {
+            try {
+              this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch (e2) {
+              console.warn('Microphone permission or hardware unavailable', e2);
+            }
+          }
+
+          if (this.micStream) {
             const source = this.ctx.createMediaStreamSource(this.micStream);
             this.analyser = this.ctx.createAnalyser();
-            this.analyser.fftSize = 8192;
+            this.analyser.fftSize = 1024; // 1024 points for fast 21ms response
             this.analyser.smoothingTimeConstant = 0.05;
             source.connect(this.analyser);
             this.startDemodulator();
             const micState = document.getElementById('pairMicState');
             if (micState) {
-              micState.textContent = 'Mic Active (Raw Audio)';
+              micState.textContent = 'Mic Active (Live)';
               micState.className = 'text-emerald-400';
             }
-          } catch (err) {
+          } else {
             this.analyser = this.ctx.createAnalyser();
-            this.analyser.fftSize = 8192;
+            this.analyser.fftSize = 1024;
             this.analyser.smoothingTimeConstant = 0.05;
             const micState = document.getElementById('pairMicState');
             if (micState) {
@@ -545,7 +561,7 @@
           }
         } else if (!this.analyser && this.ctx) {
           this.analyser = this.ctx.createAnalyser();
-          this.analyser.fftSize = 8192;
+          this.analyser.fftSize = 1024;
           this.analyser.smoothingTimeConstant = 0.05;
         }
       }
@@ -591,11 +607,11 @@
             const diagSignal = document.getElementById('diagSignalLevel');
             if (diagSignal) {
               const snr = maxVal - avgNoise;
-              diagSignal.textContent = snr > 15 ? (snr > 35 ? 'STRONG' : 'OK') : 'QUIET';
-              diagSignal.className = snr > 15 ? 'text-xs font-bold text-emerald-300 mono' : 'text-xs font-bold text-slate-400 mono';
+              diagSignal.textContent = snr > 12 ? (snr > 30 ? 'STRONG' : 'OK') : 'WAITING';
+              diagSignal.className = snr > 12 ? 'text-xs font-bold text-emerald-300 mono' : 'text-xs font-bold text-slate-400 mono';
             }
 
-            if (maxVal > avgNoise * 1.5 + 12 && peakTone >= 0) {
+            if (maxVal > avgNoise * 1.4 + 10 && peakTone >= 0) {
               if (peakTone === lastTone) {
                 toneHold++;
                 if (toneHold === 2) {
@@ -744,7 +760,7 @@
         osc.type = 'sine';
 
         gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.linearRampToValueAtTime(0.35, now + 0.006);
+        gain.gain.linearRampToValueAtTime(0.40, now + 0.005);
 
         for (let i = 0; i < symbols.length; i++) {
           const targetFreq = Math.min(nyquist, baseFreq + symbols[i] * preset.stepHz);
@@ -754,14 +770,11 @@
         }
 
         const totalDur = symbols.length * symSec;
-        gain.gain.setValueAtTime(0.35, now + totalDur - 0.006);
+        gain.gain.setValueAtTime(0.40, now + totalDur - 0.005);
         gain.gain.linearRampToValueAtTime(0.0001, now + totalDur);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
-        if (this.analyser) {
-          gain.connect(this.analyser);
-        }
 
         osc.start(now);
         osc.stop(now + totalDur + 0.01);
@@ -788,9 +801,9 @@
             const ackLbl = document.getElementById('modemAckLabel');
             if (ackLbl) ackLbl.textContent = 'RETRY #' + this.pendingRetries;
             this.transmitFrame(bytes, false);
-            this.pendingAckTimer = setTimeout(retryFn, 360);
+            this.pendingAckTimer = setTimeout(retryFn, 400);
           };
-          this.pendingAckTimer = setTimeout(retryFn, 360);
+          this.pendingAckTimer = setTimeout(retryFn, 400);
         }
 
         return { symbols, durationMs: Math.round(totalDur * 1000), baseFreq };
@@ -810,7 +823,7 @@
         const binHz = sr / this.analyser.fftSize;
         const preset = this.getPreset();
 
-        const minHz = preset.bandABase - 200;
+        const minHz = Math.max(100, preset.bandABase - 200);
         const maxHz = preset.bandBBase + 16 * preset.stepHz + 200;
         const startBin = Math.max(0, Math.floor(minHz / binHz));
         const endBin = Math.min(bins.length - 1, Math.ceil(maxHz / binHz));
@@ -824,7 +837,7 @@
           }
         }
         const peakFreq = Math.round(maxBin * binHz);
-        if (maxVal > 30) {
+        if (maxVal > 25) {
           this.lastPeakFreq = peakFreq;
         }
         return { bins, startBin, endBin, maxVal, peakFreq, binHz };
@@ -1659,7 +1672,7 @@
       if (frameStatus && info) {
         frameStatus.textContent = 'Loopback OK (' + info.symbols.length + ' sym)';
       }
-      showToast('🔊 Sent ' + (info ? info.baseFreq : 20100) + ' Hz Test Frame');
+      showToast('🔊 Sent ' + (info ? info.baseFreq : 1406) + ' Hz Test Frame');
     });
 
     document.getElementById('btnPairBack').addEventListener('click', () => {
@@ -1696,8 +1709,8 @@
     document.getElementById('btnTogglePracticeChirps').addEventListener('click', (e) => {
       modem.practiceChirps = !modem.practiceChirps;
       e.target.textContent = modem.practiceChirps
-        ? 'Ultrasonic Chirps in Practice: ON'
-        : 'Ultrasonic Chirps in Practice: OFF';
+        ? 'Chirps in Practice: ON'
+        : 'Chirps in Practice: OFF';
     });
 
     function quitToTitle() {
@@ -1713,7 +1726,7 @@
       document.getElementById('inGameControls').classList.add('hidden');
       document.getElementById('screenPair').classList.add('hidden');
       document.getElementById('screenTitle').classList.remove('hidden');
-      document.getElementById('hudStatusText').textContent = 'Standby • Silent Ultrasonic';
+      document.getElementById('hudStatusText').textContent = 'Standby • Modem Ready';
     }
 
     document.getElementById('btnMenuQuit').addEventListener('click', quitToTitle);
