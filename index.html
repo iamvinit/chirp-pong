@@ -1,1751 +1,2730 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Chirp Pong — Ultrasonic (>20 kHz) Edition</title>
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    * {
-      box-sizing: border-box;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #070913;
-      color: #f8fafc;
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      touch-action: none;
-    }
-    .mono {
-      font-family: 'JetBrains Mono', monospace;
-    }
-    @keyframes pulseGlow {
-      0%, 100% { opacity: 0.65; transform: scaleY(1); }
-      50% { opacity: 1; transform: scaleY(1.3); }
-    }
-    .portal-glow {
-      animation: pulseGlow 1.8s infinite ease-in-out;
-    }
-    .custom-scroll {
-      touch-action: pan-y;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#07051a">
+<title>Chirp Pong — Ultrasonic (>20 kHz) & Audible FSK Edition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --p1: #26e3ff;
+  --p2: #ff3d9a;
+  --bg: #07051a;
+  --ink: #eef1ff;
+  --dim: #a3a8d4;
+  --panel: rgba(18, 13, 50, 0.9);
+  --display: Orbitron, ui-rounded, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+  overscroll-behavior: none;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#court {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: block;
+  touch-action: none;
+}
+#safe-probe {
+  position: fixed;
+  visibility: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+#btn-menu {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 6px);
+  right: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(10, 8, 30, 0.55);
+  color: var(--ink);
+  font-size: 18px;
+  display: none;
+  z-index: 5;
+  cursor: pointer;
+}
+body.playing #btn-menu { display: block; }
+.screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: calc(env(safe-area-inset-top, 0px) + 28px) 18px calc(env(safe-area-inset-bottom, 0px) + 28px);
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(38, 227, 255, 0.16), transparent 60%),
+    radial-gradient(120% 60% at 50% 100%, rgba(255, 61, 154, 0.16), transparent 60%),
+    var(--bg);
+  z-index: 10;
+}
+.screen.overlay { background: rgba(5, 4, 18, 0.82); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.screen.active { display: block; }
+.wrap {
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.logo {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: clamp(44px, 15vw, 66px);
+  line-height: 0.95;
+  margin: 18px 0 2px;
+  text-align: center;
+  letter-spacing: 2px;
+}
+.logo span { display: block; }
+.logo .c1 { color: var(--p1); text-shadow: 0 0 18px rgba(38, 227, 255, 0.75), 0 0 2px #fff; }
+.logo .c2 { color: var(--p2); text-shadow: 0 0 18px rgba(255, 61, 154, 0.75), 0 0 2px #fff; }
+.tag { text-align: center; color: var(--dim); margin: 4px 0 14px; font-size: 17px; line-height: 1.4; }
+h2 {
+  font-family: var(--display);
+  font-size: 24px;
+  margin: 6px 0;
+  text-align: center;
+  letter-spacing: 1px;
+}
+h3 { font-family: var(--display); font-size: 15px; letter-spacing: 1px; margin: 14px 0 4px; color: var(--p1); }
+.btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font: 600 16px system-ui, -apple-system, sans-serif;
+  padding: 13px 16px;
+  border-radius: 14px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.btn:active { transform: scale(0.98); }
+.btn.big { font-family: var(--display); font-weight: 700; font-size: 17px; padding: 17px 16px; letter-spacing: 0.5px; }
+.btn.p1 { border-color: var(--p1); background: rgba(38, 227, 255, 0.13); box-shadow: 0 0 18px rgba(38, 227, 255, 0.25), inset 0 0 12px rgba(38, 227, 255, 0.15); }
+.btn.p2 { border-color: var(--p2); background: rgba(255, 61, 154, 0.13); box-shadow: 0 0 18px rgba(255, 61, 154, 0.25), inset 0 0 12px rgba(255, 61, 154, 0.15); }
+.btn.ghost { background: transparent; border-color: rgba(255, 255, 255, 0.12); color: var(--dim); }
+.btn[disabled] { opacity: 0.45; }
+.setting { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--dim); margin-top: 6px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; overflow: hidden; }
+.seg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  font: 700 15px var(--display);
+  padding: 9px 15px;
+  cursor: pointer;
+}
+.seg button.on { background: rgba(38, 227, 255, 0.2); color: #fff; }
+.fine { color: var(--dim); font-size: 13px; text-align: center; line-height: 1.5; margin: 8px 0 0; }
+.fine a { color: var(--dim); }
+.steps { margin: 0; padding-left: 22px; line-height: 1.5; color: #d9dcf5; }
+.steps li { margin: 4px 0; }
+.phones { width: 104px; height: auto; margin: 0 auto; display: block; }
+.phones.demo { width: 120px; margin-top: 10px; opacity: 0.9; }
+#meter { width: 100%; height: 86px; border-radius: 12px; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.08); }
+.status {
+  text-align: center;
+  font-family: var(--display);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  color: #fff;
+  min-height: 1.4em;
+}
+.status.warn { color: #ffcf4d; }
+.status.good { color: #7dffb0; }
+.trick-list { display: grid; grid-template-columns: 34px 1fr; gap: 8px 10px; align-items: center; margin: 4px 0; }
+.trick-list .ic { font-size: 24px; text-align: center; }
+.trick-list b { font-family: var(--display); font-size: 13px; letter-spacing: 0.5px; }
+.howto p, .howto li { color: #d9dcf5; line-height: 1.5; }
+.howto ul { padding-left: 20px; margin: 4px 0; }
+#over-title { font-size: 34px; margin-top: 30px; }
+#over-score { font-family: var(--display); font-weight: 900; font-size: 54px; text-align: center; }
+#over-stats { color: var(--dim); text-align: center; line-height: 1.7; }
+.err { color: #ff8a8a; text-align: center; }
+#link-stats { font-family: ui-monospace, monospace; font-size: 12px; color: var(--dim); text-align: center; }
+body.sim #court { display: none; }
+#sim-root { display: none; }
+body.sim #sim-root {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  gap: 18px;
+  align-items: center;
+  justify-content: center;
+  background: #030210;
+}
+.sim-phones { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.sim-phones canvas { border-radius: 14px; border: 2px solid #26213f; display: block; }
+.sim-phones canvas.flip { transform: rotate(180deg); }
+#sim-stats { font: 12px/1.6 ui-monospace, monospace; color: #b8bce0; white-space: pre; min-width: 260px; }
+</style>
 </head>
-<body class="relative w-full h-full flex flex-col items-center justify-center bg-[#070913] text-slate-100 overflow-hidden">
+<body>
+<canvas id="court"></canvas>
+<div id="safe-probe"></div>
+<button id="btn-menu" aria-label="Menu">☰</button>
+<div id="sim-root"></div>
 
-  <!-- TOP HUD BAR -->
-  <header class="w-full max-w-lg px-3 py-2 flex items-center justify-between z-20 bg-slate-950/80 border-b border-slate-800/80 backdrop-blur-md">
-    <div class="flex items-center gap-2">
-      <button id="btnMenuToggle" type="button" class="w-9 h-9 rounded-lg bg-slate-800/90 hover:bg-slate-700 active:scale-95 flex items-center justify-center text-slate-200 font-bold text-lg transition" aria-label="Menu">
-        ☰
-      </button>
-      <div>
-        <div class="flex items-center gap-1.5">
-          <span class="font-black tracking-tight text-sm text-cyan-400">CHIRP PONG</span>
-          <span id="hudBandBadge" class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 mono">&gt;20kHz FSK</span>
-        </div>
-        <div id="hudStatusText" class="text-[11px] text-slate-400 mono truncate max-w-[180px] sm:max-w-[240px]">Standby • Modem Ready</div>
+<section class="screen active" id="scr-title">
+  <div class="wrap">
+    <h1 class="logo"><span class="c1">CHIRP</span><span class="c2">PONG</span></h1>
+    <p class="tag">Two phones. One ball.<br>Carried between them by sound.</p>
+    <button class="btn big p1" id="btn-duel">📱📱 Play on two phones</button>
+    <button class="btn big p2" id="btn-practice">🤖 Practice vs CPU</button>
+    <button class="btn" id="btn-howto">How to play</button>
+    <div class="setting">First to
+      <div class="seg" id="seg-target">
+        <button data-v="7">7</button><button data-v="11" class="on">11</button><button data-v="15">15</button>
       </div>
     </div>
-
-    <!-- Score & Heat Readout -->
-    <div class="flex items-center gap-3">
-      <div id="hudHeatBadge" class="hidden px-2 py-0.5 rounded-full text-xs font-extrabold bg-amber-500/20 text-amber-300 border border-amber-400/40 mono">
-        ×1
-      </div>
-      <div class="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 px-2.5 py-1 rounded-lg mono text-sm font-bold">
-        <span id="scoreYou" class="text-cyan-400">0</span>
-        <span class="text-slate-600">:</span>
-        <span id="scoreThem" class="text-rose-400">0</span>
+    <div class="setting" style="margin-top: 10px;">Modem Freq:
+      <div class="seg" id="seg-freq">
+        <button data-f="audible" class="on" title="1.4–5 kHz (Simon original audible chirps)">🔊 Audible</button>
+        <button data-f="near_ultrasonic" title="16.5–19.9 kHz (Phone-safe high frequency)">🦇 18k</button>
+        <button data-f="ultrasonic" title=">20 kHz (Strict Ultrasonic, silent)">⚡ &gt;20k</button>
       </div>
     </div>
-  </header>
+    <p class="fine">No Wi-Fi, Bluetooth or accounts. The two phones talk to each other by chirping, using the speaker and microphone.</p>
+    <svg class="phones demo" viewBox="0 0 160 226" aria-hidden="true">
+      <rect x="44" y="3" width="72" height="100" rx="13" fill="#120c34" stroke="#ff3d9a" stroke-width="2.5"/>
+      <rect x="44" y="123" width="72" height="100" rx="13" fill="#120c34" stroke="#26e3ff" stroke-width="2.5"/>
+      <rect y="13" width="34" height="4.5" rx="2.2" fill="#ff3d9a">
+        <animate attributeName="x" dur="3.2s" repeatCount="indefinite" values="60;72;65;56;60" keyTimes="0;0.3;0.515;0.8;1"/>
+      </rect>
+      <rect y="208.5" width="34" height="4.5" rx="2.2" fill="#26e3ff">
+        <animate attributeName="x" dur="3.2s" repeatCount="indefinite" values="61;56;68;61" keyTimes="0;0.25;0.6;1"/>
+      </rect>
+      <g fill="#ffe14d" font-size="11" font-family="system-ui" opacity="0">
+        <text x="70" y="117">♪</text><text x="100" y="115">♫</text>
+        <animate attributeName="opacity" dur="3.2s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.2;0.29;0.7;0.79" values="0;1;0;1;0"/>
+      </g>
+      <circle r="4.2" fill="#fff">
+        <animateMotion dur="3.2s" repeatCount="indefinite" path="M78 204 L 108 160 L 92 126 L 92 100 L 54 52 L 82 22 L 104 66 L 92 100 L 92 126 L 58 170 Z"/>
+        <animate attributeName="opacity" dur="3.2s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.214;0.275;0.716;0.777" values="1;0;1;0;1"/>
+      </circle>
+    </svg>
+  </div>
+</section>
 
-  <!-- MAIN COURT AREA -->
-  <main class="relative flex-1 w-full max-w-lg flex flex-col overflow-hidden bg-[#070913]">
-    <!-- Top Portal Visual Bar -->
-    <div id="portalBar" class="w-full h-2 bg-gradient-to-r from-cyan-500 via-fuchsia-500 to-cyan-500 portal-glow shadow-[0_0_20px_rgba(6,182,212,0.8)] z-10"></div>
-
-    <!-- Ultrasonic Telemetry Strip -->
-    <div class="w-full px-3 py-1 bg-slate-950/70 border-b border-slate-900 flex items-center justify-between text-[11px] mono text-slate-400 z-10">
-      <div class="flex items-center gap-2">
-        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400" id="modemLed"></span>
-        <span id="modemFreqLabel">Carrier: 1.40–4.97 kHz</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <span id="modemAckLabel">ACK: OK</span>
-        <span class="text-slate-600">|</span>
-        <span id="modemSrLabel">48.0 kHz</span>
-      </div>
+<section class="screen" id="scr-lobby">
+  <div class="wrap">
+    <h2>Pair the phones</h2>
+    <svg class="phones" viewBox="0 0 160 226" aria-label="Two phones placed top to top">
+      <rect x="44" y="3" width="72" height="100" rx="13" fill="#120c34" stroke="#ff3d9a" stroke-width="2.5"/>
+      <rect x="61" y="13" width="38" height="4.5" rx="2.2" fill="#ff3d9a"/>
+      <rect x="44" y="123" width="72" height="100" rx="13" fill="#120c34" stroke="#26e3ff" stroke-width="2.5"/>
+      <rect x="61" y="208.5" width="38" height="4.5" rx="2.2" fill="#26e3ff"/>
+      <path d="M86 204 C 104 150, 96 80, 70 26" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 4" fill="none" opacity="0.8"/>
+      <circle cx="70" cy="26" r="4.5" fill="#fff"/>
+      <path d="M58 108 q 22 7 44 0" stroke="#ffe14d" stroke-width="2" fill="none"/>
+      <path d="M58 118 q 22 -7 44 0" stroke="#ffe14d" stroke-width="2" fill="none"/>
+      <text x="125" y="117" fill="#ffe14d" font-size="11" font-family="system-ui">♪</text>
+      <text x="26" y="114" fill="#ffe14d" font-size="11" font-family="system-ui">♫</text>
+    </svg>
+    <ol class="steps">
+      <li>Open this page on <b>both</b> phones and tap <b>Play on two phones</b>.</li>
+      <li>Turn the volume <b>all the way up</b> (and switch off silent mode).</li>
+      <li>Lay the phones on a table <b>top-to-top</b>, a few centimetres apart.</li>
+      <li>Tap <b>Call</b> on one phone. The other one answers by itself.</li>
+    </ol>
+    <canvas id="meter" width="440" height="86"></canvas>
+    <div class="status" id="lobby-status">Starting microphone…</div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn big p1" id="btn-call" style="flex: 2;">📣 Call other phone</button>
+      <button class="btn big" id="btn-force-p1" style="flex: 1; border-color: var(--p1); background: rgba(38, 227, 255, 0.15); font-size: 13px;" title="Instant Start as Player 1">🔵 P1 Force</button>
+      <button class="btn big" id="btn-force-p2" style="flex: 1; border-color: var(--p2); background: rgba(255, 61, 154, 0.15); font-size: 13px;" title="Instant Start as Player 2">🔴 P2 Force</button>
     </div>
+    <button class="btn" id="btn-selftest">🔊 Test this phone's speaker + mic</button>
+    <button class="btn ghost" id="btn-lobby-back">Back</button>
+  </div>
+</section>
 
-    <!-- Game Canvas -->
-    <div id="canvasContainer" class="relative flex-1 w-full h-full overflow-hidden">
-      <canvas id="gameCanvas" class="block w-full h-full"></canvas>
+<section class="screen" id="scr-howto">
+  <div class="wrap howto">
+    <h2>How to play</h2>
+    <p>Each phone is one half of the court. The top edge of your screen is a <b>portal</b>: the ball flies through it, the phone chirps it across, and it bursts out of the top of the other phone. You'll hear it go.</p>
+    <h3>CONTROLS</h3>
+    <ul>
+      <li><b>Drag</b> anywhere to move your paddle. It floats just above your finger.</li>
+      <li>Hit with the paddle's <b>edge</b> to angle your shot.</li>
+      <li><b>Swipe sideways</b> as you hit to add spin. The ball <b>curves</b>, and keeps curving on their screen.</li>
+      <li><b>Flick up</b> into the ball to <b>SMASH</b> it.</li>
+    </ul>
+    <h3>TRICK GEMS</h3>
+    <p>Knock the ball through a gem to load a trick. It goes off on <b>their</b> screen when the ball arrives:</p>
+    <div class="trick-list" id="trick-list"></div>
+    <h3>HEAT</h3>
+    <p>Long rallies heat up the court. 6+ hits and the point is worth <b>×2</b>, 12+ and it's worth <b>×3</b>.</p>
+    <h3>BOMBS</h3>
+    <p>Every return charges your bomb meter. When it's full, <b>tap</b> while the ball is on their side to drop a bomb onto their screen, lined up with where you tapped. If it hits their paddle, the paddle is stunned.</p>
+    <h3>WINNING</h3>
+    <p>Miss the ball and they score. Whoever misses serves next.</p>
+    <button class="btn big p1" id="btn-howto-back">Got it</button>
+  </div>
+</section>
 
-      <!-- Floating Bomb Charge & Active Gem HUD inside court -->
-      <div id="inGameControls" class="hidden absolute bottom-3 left-3 right-3 pointer-events-none flex items-end justify-between z-10">
-        <div class="bg-slate-900/85 border border-slate-800/90 rounded-xl px-3 py-1.5 backdrop-blur-sm pointer-events-auto">
-          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Bomb Meter</div>
-          <div class="flex items-center gap-2 mt-1">
-            <div class="w-24 h-2 bg-slate-800 rounded-full overflow-hidden">
-              <div id="bombMeterFill" class="h-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all duration-150" style="width: 0%"></div>
-            </div>
-            <button id="btnDropBomb" type="button" class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-600/30 text-rose-300 border border-rose-500/40 opacity-50 cursor-not-allowed transition">
-              💣 READY TAP COURT
-            </button>
-          </div>
-        </div>
+<section class="screen overlay" id="scr-pause">
+  <div class="wrap">
+    <h2 id="pause-title">Menu</h2>
+    <button class="btn big p1" id="btn-resume">Resume</button>
+    <button class="btn" id="btn-sfx">Sound effects: on</button>
+    <button class="btn" id="btn-chirps">Chirps in practice: on</button>
+    <button class="btn ghost" id="btn-quit">Quit to title</button>
+    <div id="link-stats"></div>
+  </div>
+</section>
 
-        <div class="bg-slate-900/85 border border-slate-800/90 rounded-xl px-3 py-1.5 backdrop-blur-sm text-right">
-          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Loaded Trick</div>
-          <div id="activeGemLabel" class="text-xs font-bold text-slate-300 mt-0.5 mono">None</div>
-        </div>
-      </div>
+<section class="screen overlay" id="scr-over">
+  <div class="wrap">
+    <h2 id="over-title">YOU WIN</h2>
+    <div id="over-score">11 – 7</div>
+    <div id="over-stats"></div>
+    <button class="btn big p1" id="btn-rematch">Rematch</button>
+    <button class="btn ghost" id="btn-over-menu">Quit to title</button>
+  </div>
+</section>
 
-      <!-- Toast / Banner notification -->
-      <div id="courtToast" class="hidden absolute top-6 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-slate-900/95 border border-cyan-500/50 text-cyan-200 text-xs font-bold tracking-wide shadow-lg pointer-events-none z-20 mono">
-        CHIRP SENT
-      </div>
-    </div>
+<script id="chirp-core">
+// ============================================================================
+// Chirp modem core: tone plan, frame codec and demodulator. No DOM in here so
+// it can be exercised on its own (window.ChirpCore).
+//
+// Each player "sings" in their own band of 18 sine tones: 17 data tones plus a
+// sync tone. Data is 16-ary FSK (4 bits per 50 ms symbol). Symbols are coded
+// differentially so consecutive tones always differ, which lets the receiver
+// find symbol boundaries without sharing a clock. Every frame starts with a
+// 100 ms sync tone and ends with a CRC-8.
+// ============================================================================
+const ChirpCore = (() => {
+  'use strict';
+  const RES = 46.875;          // Hz per analysis bin (48000 / 1024)
+  const TONES = 18;
+  const DATA_TONES = 17;
+  const SYNC = 17;
+  const FREQ_PROFILES = {
+    audible: {
+      id: "audible",
+      name: "Audible (1.4–5 kHz)",
+      bases: [30, 72],
+      desc: "Original audible chirps (1.4–5.0 kHz). 100% reliable across all hardware."
+    },
+    near_ultrasonic: {
+      id: "near_ultrasonic",
+      name: "Near-Ultrasonic (16.5–19.9 kHz)",
+      bases: [352, 390],
+      desc: "Inaudible to most adults (16.5–19.9 kHz). Phone-safe high frequency."
+    },
+    ultrasonic: {
+      id: "ultrasonic",
+      name: "Strict Ultrasonic (>20 kHz)",
+      bases: [428, 466],
+      desc: "Completely inaudible (>20 kHz). Silent acoustic modem."
+    }
+  };
+  let currentProfile = "audible";
+  const BAND_BASE = [30, 72];
 
-    <!-- TITLE SCREEN OVERLAY -->
-    <section id="screenTitle" class="custom-scroll absolute inset-0 z-30 bg-[#070913]/95 backdrop-blur-md flex flex-col items-center justify-start p-5 text-center">
-      <div class="w-full max-w-md my-auto py-3 flex flex-col items-center">
-        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-fuchsia-500/15 border border-fuchsia-500/40 text-fuchsia-300 text-xs font-semibold mb-3 mono">
-          <span>🦇 AUDIO &amp; ULTRASONIC MODEM</span>
-        </div>
+  function setProfile(profId) {
+    if (FREQ_PROFILES[profId]) {
+      currentProfile = profId;
+      BAND_BASE[0] = FREQ_PROFILES[profId].bases[0];
+      BAND_BASE[1] = FREQ_PROFILES[profId].bases[1];
+    }
+  }
+  const T_SYM = 0.05;
+  const PRE_SYMS = 2;
+  const MIN_AMP = 0.0004;
 
-        <h1 class="text-4xl sm:text-5xl font-black tracking-tight bg-gradient-to-r from-cyan-400 via-sky-200 to-fuchsia-400 bg-clip-text text-transparent">
-          CHIRP PONG
-        </h1>
-        <p class="text-sm text-slate-300 mt-1.5 max-w-xs">
-          Two phones. One ball. Carried between them by <span class="text-cyan-300 font-semibold">acoustic sound chirps</span>.
-        </p>
+  const toneFreq = (band, k) => (BAND_BASE[band] + 2 * k) * RES;
+  const bandFreqs = (band) => Array.from({ length: TONES }, (_, k) => toneFreq(band, k));
 
-        <!-- Primary Action Buttons -->
-        <div class="w-full flex flex-col gap-2.5 mt-5">
-          <button id="btnPlayTwoPhones" type="button" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-[0.99] text-slate-950 font-extrabold text-base shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition">
-            <span>📱📱</span>
-            <span>Play on two phones</span>
-          </button>
+  const TYPES = { HELLO: 0, WELCOME: 1, BALL: 2, MISS: 3, ACK: 4, BOMB: 5, REMATCH: 6, TAUNT: 7 };
+  const TYPE_NAMES = Object.keys(TYPES);
+  // Frame = type (3 bits) + sequence bit + fields + zero padding + CRC-8.
+  const LAYOUT = [
+    [['nonce', 8], ['target', 4]],                                    // HELLO
+    [['nonce', 8], ['target', 4]],                                    // WELCOME
+    [['x', 6], ['ang', 5], ['spd', 3], ['spin', 3], ['trick', 3], ['rally', 5], ['smash', 1]], // BALL
+    [['sa', 4], ['sb', 4]],                                           // MISS (absolute scores)
+    [['of', 3]],                                                      // ACK
+    [['x', 6]],                                                       // BOMB
+    [['nonce', 8]],                                                   // REMATCH
+    [['emote', 4]],                                                   // TAUNT
+  ];
+  const CRC_BITS = 8;
 
-          <div class="grid grid-cols-2 gap-2.5">
-            <button id="btnPracticeCpu" type="button" class="py-3 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-slate-100 font-bold text-sm flex items-center justify-center gap-1.5 transition">
-              <span>🤖</span>
-              <span>Practice vs CPU</span>
-            </button>
-            <button id="btnSimMode" type="button" class="py-3 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-fuchsia-300 font-bold text-sm flex items-center justify-center gap-1.5 transition">
-              <span>🔬</span>
-              <span>2-CPU Modem Sim</span>
-            </button>
-          </div>
+  function frameSymbols(type) {
+    const bits = 4 + LAYOUT[type].reduce((sum, f) => sum + f[1], 0) + CRC_BITS;
+    return Math.ceil(bits / 4);
+  }
+  const airtime = (type) => (PRE_SYMS + frameSymbols(type)) * T_SYM;
 
-          <button id="btnHowToPlay" type="button" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-semibold text-xs transition">
-            📖 How to play &amp; Trick Gems
-          </button>
-        </div>
+  function crc8(bits) {
+    let c = 0x5a;
+    for (const b of bits) {
+      const top = ((c >> 7) & 1) ^ b;
+      c = (c << 1) & 0xff;
+      if (top) c ^= 0x07;
+    }
+    return c;
+  }
 
-        <!-- Match Points Selector -->
-        <div class="w-full mt-5 p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">First to</span>
-          <div class="flex items-center gap-2">
-            <button type="button" data-points="7" class="btn-points px-3.5 py-1.5 rounded-lg text-xs font-extrabold mono bg-cyan-500 text-slate-950 transition">7</button>
-            <button type="button" data-points="11" class="btn-points px-3.5 py-1.5 rounded-lg text-xs font-extrabold mono bg-slate-800 text-slate-300 hover:bg-slate-700 transition">11</button>
-            <button type="button" data-points="15" class="btn-points px-3.5 py-1.5 rounded-lg text-xs font-extrabold mono bg-slate-800 text-slate-300 hover:bg-slate-700 transition">15</button>
-          </div>
-        </div>
+  function pushBits(bits, value, n) {
+    for (let i = n - 1; i >= 0; i--) bits.push((value >> i) & 1);
+  }
 
-        <!-- Carrier Frequency Selector -->
-        <div class="w-full mt-3 p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-left">
-          <div class="flex items-center justify-between mb-1.5">
-            <label for="selectFreqBand" class="text-xs font-bold uppercase tracking-wider text-fuchsia-300">Modem Carrier Band</label>
-            <span id="badgeInaudible" class="text-[10px] mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Audible Chirps</span>
-          </div>
-          <select id="selectFreqBand" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 mono focus:outline-none focus:border-cyan-400">
-            <option value="audible" selected>Original Audible FSK (1.4–5.0 kHz • Guaranteed on all phones)</option>
-            <option value="ultra48">Strict Ultrasonic &gt;20 kHz (20.15–23.60 kHz • Silent to Humans)</option>
-            <option value="nearUltra">Near-Ultrasonic (17.5–19.9 kHz • Phone Safe Ultrasonic)</option>
-            <option value="ultra44">44.1kHz-Safe Ultrasonic &gt;20 kHz (20.05–21.70 kHz)</option>
-          </select>
-          <p id="freqBandHint" class="text-[11px] text-slate-400 mt-2 leading-relaxed">
-            Uses 1024-point FFT with 50ms symbols matching physical acoustic propagation. Works across iOS, Android, and laptops.
-          </p>
-        </div>
+  function encodeFrame(type, seq, fields = {}) {
+    const bits = [];
+    pushBits(bits, type, 3);
+    pushBits(bits, seq & 1, 1);
+    for (const [name, n] of LAYOUT[type]) {
+      const v = Math.max(0, Math.min((1 << n) - 1, Math.round(fields[name] || 0)));
+      pushBits(bits, v, n);
+    }
+    const total = frameSymbols(type) * 4;
+    while (bits.length < total - CRC_BITS) bits.push(0);
+    pushBits(bits, crc8(bits), CRC_BITS);
+    const vals = [];
+    for (let i = 0; i < bits.length; i += 4) {
+      vals.push((bits[i] << 3) | (bits[i + 1] << 2) | (bits[i + 2] << 1) | bits[i + 3]);
+    }
+    return vals;
+  }
 
-        <p class="text-[11px] text-slate-500 mt-4 leading-normal">
-          No Wi-Fi, Bluetooth, or accounts. The two phones talk by chirping FSK packets through the speaker and microphone.
-        </p>
-      </div>
-    </section>
+  function decodeFrame(vals) {
+    if (!vals.length) return null;
+    const type = vals[0] >> 1;
+    if (vals.length !== frameSymbols(type)) return null;
+    const bits = [];
+    for (const v of vals) pushBits(bits, v, 4);
+    const bodyLen = bits.length - CRC_BITS;
+    let crc = 0;
+    for (let i = bodyLen; i < bits.length; i++) crc = (crc << 1) | bits[i];
+    if (crc8(bits.slice(0, bodyLen)) !== crc) return null;
+    let p = 4;
+    const fields = {};
+    for (const [name, n] of LAYOUT[type]) {
+      let v = 0;
+      for (let i = 0; i < n; i++) v = (v << 1) | bits[p++];
+      fields[name] = v;
+    }
+    for (; p < bodyLen; p++) if (bits[p]) return null;
+    return { type, name: TYPE_NAMES[type], seq: vals[0] & 1, fields };
+  }
 
-    <!-- TWO-PHONE PAIRING SCREEN OVERLAY -->
-    <section id="screenPair" class="custom-scroll hidden absolute inset-0 z-30 bg-[#070913]/95 backdrop-blur-md flex flex-col items-center justify-start p-4">
-      <div class="w-full max-w-md my-auto py-2 flex flex-col items-center text-center">
-        <div class="text-xs font-bold uppercase tracking-widest text-cyan-400 mono mb-1">♪ ♫ Acoustic &amp; Ultrasonic FSK Link ♪ ♫</div>
-        <h2 class="text-2xl font-extrabold text-white">Pair Two Phones</h2>
-        <p class="text-xs text-slate-300 mt-1 leading-relaxed">
-          Place phones top-to-top (2–5 cm apart). Turn volume to <strong>100%</strong> and switch <strong>Silent Mode / Mute OFF</strong>.
-        </p>
+  // Read the first field (x for BALL and BOMB) before the frame is complete,
+  // so the receiving screen can start materialising the ball in the right spot.
+  function peekX(vals) {
+    if (vals.length < 3) return null;
+    return ((vals[1] << 2) | (vals[2] >> 2)) & 63;
+  }
 
-        <!-- Spectrum Analyzer & Signal Diagnostics -->
-        <div class="w-full mt-3 p-3 rounded-xl bg-slate-900/95 border border-slate-800">
-          <div class="flex items-center justify-between text-[11px] mono text-slate-400 mb-1.5">
-            <span id="pairSpectrumRange">Live FFT Spectrum</span>
-            <span id="pairMicState" class="text-amber-300">Starting microphone…</span>
-          </div>
-          <canvas id="spectrumCanvas" width="360" height="90" class="w-full h-24 bg-slate-950 rounded-lg border border-slate-800/80"></canvas>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 text-left">
-            <div class="p-1.5 rounded bg-slate-950/90 border border-slate-800/80">
-              <div class="text-[9px] text-slate-500 uppercase">Peak Freq</div>
-              <div id="diagPeakFreq" class="text-xs font-bold text-cyan-300 mono">-- Hz</div>
-            </div>
-            <div class="p-1.5 rounded bg-slate-950/90 border border-slate-800/80">
-              <div class="text-[9px] text-slate-500 uppercase">Sample Rate</div>
-              <div id="diagSampleRate" class="text-xs font-bold text-fuchsia-300 mono">48000 Hz</div>
-            </div>
-            <div class="p-1.5 rounded bg-slate-950/90 border border-slate-800/80">
-              <div class="text-[9px] text-slate-500 uppercase">Packet State</div>
-              <div id="diagFrameStatus" class="text-xs font-bold text-emerald-300 mono">Listening</div>
-            </div>
-            <div class="p-1.5 rounded bg-slate-950/90 border border-slate-800/80">
-              <div class="text-[9px] text-slate-500 uppercase">Mic Signal</div>
-              <div id="diagSignalLevel" class="text-xs font-bold text-slate-400 mono">READY</div>
-            </div>
-          </div>
-        </div>
+  function valuesToTones(vals) {
+    let prev = DATA_TONES - 1;
+    return vals.map((v) => (prev = (prev + 1 + v) % DATA_TONES));
+  }
 
-        <!-- Automatic Acoustic Pairing Button -->
-        <div class="w-full flex flex-col gap-2 mt-3">
-          <button id="btnCallOtherPhone" type="button" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-cyan-500/20 transition">
-            📣 Auto-Pair: Tap Call on Phone 1 (Beaconing)
-          </button>
-        </div>
+  // Render a frame to samples in plain JS (used by the tests).
+  function synthFrame(band, vals, sampleRate, { amp = 0.3, lead = 0.1, tail = 0.2 } = {}) {
+    const freqs = bandFreqs(band);
+    const seq = [];
+    for (let i = 0; i < PRE_SYMS; i++) seq.push(SYNC);
+    seq.push(...valuesToTones(vals));
+    const dur = seq.length * T_SYM;
+    const n = Math.ceil((lead + dur + tail) * sampleRate);
+    const out = new Float32Array(n);
+    let phase = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / sampleRate - lead;
+      if (t < 0 || t >= dur) continue;
+      const f = freqs[seq[Math.min(seq.length - 1, Math.floor(t / T_SYM))]];
+      phase += 2 * Math.PI * f / sampleRate;
+      const env = Math.min(1, t / 0.005, (dur - t) / 0.005);
+      out[i] = amp * env * Math.sin(phase);
+    }
+    return out;
+  }
 
-        <!-- Instant Manual Role Selection (Zero Hassle) -->
-        <div class="w-full mt-3 p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-left">
-          <div class="text-xs font-bold text-slate-200 mb-1">Instant Start (Skip Acoustic Handshake):</div>
-          <p class="text-[11px] text-slate-400 mb-2.5">
-            If room noise or phone mic limits prevent auto-pairing, tap <strong>Player 1</strong> on Phone 1 and <strong>Player 2</strong> on Phone 2 to begin the match instantly:
-          </p>
-          <div class="grid grid-cols-2 gap-2">
-            <button id="btnStartPlayer1" type="button" class="py-2.5 px-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black text-xs transition text-center shadow">
-              🔵 Phone 1 (Player 1)<br><span class="text-[10px] font-normal text-cyan-950">Serves first</span>
-            </button>
-            <button id="btnStartPlayer2" type="button" class="py-2.5 px-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs transition text-center shadow">
-              🔴 Phone 2 (Player 2)<br><span class="text-[10px] font-normal text-rose-100">Receives first</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="w-full flex flex-col gap-2 mt-3">
-          <button id="btnTestSpeakerMic" type="button" class="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-semibold text-xs transition">
-            🔊 Test speaker + mic on this phone
-          </button>
-          <button id="btnPairBack" type="button" class="w-full py-2 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold text-xs transition">
-            ← Back to title
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- HOW TO PLAY MODAL -->
-    <section id="modalHowToPlay" class="custom-scroll hidden absolute inset-0 z-40 bg-[#070913]/95 backdrop-blur-md p-5 flex flex-col items-center">
-      <div class="w-full max-w-md my-auto py-3 text-left space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
-          <h2 class="text-xl font-extrabold text-white">How to Play Chirp Pong</h2>
-          <button id="btnCloseHowToTop" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold">✕</button>
-        </div>
-
-        <p class="text-xs text-slate-300 leading-relaxed">
-          Each phone is one half of the court. The top edge of your screen is a <span class="text-cyan-400 font-semibold">portal</span>: the ball flies through it, your phone chirps an audio/ultrasonic 16-FSK packet across, and the ball bursts out of the top of the other phone.
-        </p>
-
-        <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
-          <div class="text-xs font-extrabold text-cyan-400 uppercase tracking-wider">Controls</div>
-          <p class="text-xs text-slate-300 leading-relaxed">
-            Drag anywhere (or use Left/Right arrows) to move your paddle. Hit with the paddle's edge to angle your shot. <span class="text-white font-semibold">Swipe sideways</span> as you hit to add curve spin that continues on their screen. <span class="text-amber-300 font-semibold">Flick upward</span> into the ball to <span class="text-amber-300 font-bold">SMASH</span> it.
-          </p>
-        </div>
-
-        <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
-          <div class="text-xs font-extrabold text-fuchsia-400 uppercase tracking-wider">Trick Gems</div>
-          <p class="text-xs text-slate-400">Knock the ball through a gem on your court to load a trick that triggers on their screen when the ball arrives:</p>
-          <div class="grid grid-cols-1 gap-1.5 text-xs">
-            <div class="flex items-center gap-2"><span class="text-base">🔥</span><span><strong class="text-orange-300">BLAZE:</strong> Arrives 45% faster, trailing fire.</span></div>
-            <div class="flex items-center gap-2"><span class="text-base">👻</span><span><strong class="text-indigo-300">PHANTOM:</strong> Turns invisible across the middle of their court.</span></div>
-            <div class="flex items-center gap-2"><span class="text-base">🔱</span><span><strong class="text-cyan-300">MIRAGE:</strong> Splits into three. Only one is real.</span></div>
-            <div class="flex items-center gap-2"><span class="text-base">💣</span><span><strong class="text-rose-300">BOMB:</strong> A bomb falls alongside; stuns their paddle on contact.</span></div>
-            <div class="flex items-center gap-2"><span class="text-base">🌀</span><span><strong class="text-purple-300">VORTEX:</strong> A black hole opens on their side and bends the ball.</span></div>
-            <div class="flex items-center gap-2"><span class="text-base">🔄</span><span><strong class="text-emerald-300">MIRROR:</strong> Their left/right paddle controls flip.</span></div>
-            <div class="flex items-center gap-2"><span class="text-base">🐜</span><span><strong class="text-amber-300">SHRINK:</strong> Their paddle shrinks to half size.</span></div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2.5">
-          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
-            <div class="text-xs font-extrabold text-amber-400 uppercase">Heat Multiplier</div>
-            <p class="text-[11px] text-slate-300 mt-1">Long rallies heat up the court: 6+ hits = <strong>×2 points</strong>, 12+ hits = <strong>×3 points</strong>.</p>
-          </div>
-          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
-            <div class="text-xs font-extrabold text-rose-400 uppercase">Aimed Bombs</div>
-            <p class="text-[11px] text-slate-300 mt-1">Every return charges your bomb meter. When full, tap while the ball is away to chirp a bomb onto their screen.</p>
-          </div>
-        </div>
-
-        <button id="btnGotItHowTo" type="button" class="w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-sm transition">
-          Got it
-        </button>
-      </div>
-    </section>
-
-    <!-- IN-GAME PAUSE / SETTINGS MENU MODAL -->
-    <section id="modalMenu" class="hidden absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-5">
-      <div class="w-full max-w-xs rounded-2xl bg-slate-900 border border-slate-800 p-5 flex flex-col gap-3 text-center shadow-2xl">
-        <h3 class="text-lg font-extrabold text-white">Menu</h3>
-        <button id="btnMenuResume" type="button" class="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-sm transition">
-          Resume
-        </button>
-        <button id="btnToggleSfx" type="button" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition">
-          Arcade SFX: OFF (Pure Silent Mode)
-        </button>
-        <button id="btnTogglePracticeChirps" type="button" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition">
-          Chirps in Practice: ON
-        </button>
-        <button id="btnMenuQuit" type="button" class="w-full py-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 text-rose-300 border border-rose-800/60 font-bold text-xs transition">
-          Quit to title
-        </button>
-      </div>
-    </section>
-
-    <!-- GAME OVER MODAL -->
-    <section id="modalGameOver" class="hidden absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-5">
-      <div class="w-full max-w-xs rounded-2xl bg-slate-900 border border-slate-800 p-6 flex flex-col items-center text-center shadow-2xl">
-        <div class="text-xs font-bold uppercase tracking-widest text-cyan-400 mono">Match Complete</div>
-        <h3 id="gameOverHeading" class="text-3xl font-black text-white mt-1">YOU WIN</h3>
-        <div id="gameOverScore" class="text-2xl font-extrabold mono text-cyan-300 my-3">7 – 4</div>
-        <div class="w-full flex flex-col gap-2.5 mt-2">
-          <button id="btnRematch" type="button" class="w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-sm transition">
-            Rematch
-          </button>
-          <button id="btnGameOverQuit" type="button" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">
-            Quit to title
-          </button>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <script>
-    // =========================================================================
-    // MODEM CONSTANTS & DIFFERENTIAL 16-FSK CODEC
-    // =========================================================================
-    const BAND_PRESETS = {
-      audible: {
-        name: 'Original Audible FSK (1.4–5.0 kHz)',
-        shortBadge: '1.4–5.0kHz',
-        rangeLabel: '1.40–4.97 kHz',
-        preferredSampleRate: 48000,
-        bandABase: 1406,
-        bandBBase: 3375,
-        stepHz: 94,
-        symbolMs: 50,
-        inaudible: false
-      },
-      nearUltra: {
-        name: 'Near-Ultrasonic (17.5–19.9 kHz • Phone Safe)',
-        shortBadge: '17.5–19.9kHz',
-        rangeLabel: '17.50–19.90 kHz',
-        preferredSampleRate: 48000,
-        bandABase: 17500,
-        bandBBase: 18750,
-        stepHz: 75,
-        symbolMs: 50,
-        inaudible: true
-      },
-      ultra48: {
-        name: 'Strict Ultrasonic >20 kHz (48kHz SR)',
-        shortBadge: '>20kHz FSK',
-        rangeLabel: '20.15–23.60 kHz',
-        preferredSampleRate: 48000,
-        bandABase: 20156,
-        bandBBase: 22031,
-        stepHz: 94,
-        symbolMs: 50,
-        inaudible: true
-      },
-      ultra44: {
-        name: '44.1kHz-Safe Ultrasonic >20 kHz',
-        shortBadge: '>20kHz (44.1k)',
-        rangeLabel: '20.05–21.70 kHz',
-        preferredSampleRate: 44100,
-        bandABase: 20050,
-        bandBBase: 20950,
-        stepHz: 50,
-        symbolMs: 50,
-        inaudible: true
-      }
-    };
-
-    const PKT_TYPES = {
-      HELLO: 1,
-      HELLO_ACK: 2,
-      BALL_CROSS: 3,
-      BOMB_DROP: 4,
-      SCORE_POINT: 5,
-      ACK: 6
-    };
-
-    const GEM_TYPES = [
-      { id: 0, name: 'None', icon: '' },
-      { id: 1, name: 'BLAZE', icon: '🔥', color: '#f97316' },
-      { id: 2, name: 'PHANTOM', icon: '👻', color: '#818cf8' },
-      { id: 3, name: 'MIRAGE', icon: '🔱', color: '#22d3ee' },
-      { id: 4, name: 'BOMB', icon: '💣', color: '#f43f5e' },
-      { id: 5, name: 'VORTEX', icon: '🌀', color: '#c084fc' },
-      { id: 6, name: 'MIRROR', icon: '🔄', color: '#34d399' },
-      { id: 7, name: 'SHRINK', icon: '🐜', color: '#fbbf24' }
-    ];
-
-    function crc8(bytes) {
-      let crc = 0x00;
-      for (let i = 0; i < bytes.length; i++) {
-        crc ^= bytes[i] & 0xff;
-        for (let b = 0; b < 8; b++) {
-          if (crc & 0x80) {
-            crc = ((crc << 1) ^ 0x07) & 0xff;
-          } else {
-            crc = (crc << 1) & 0xff;
-          }
-        }
-      }
-      return crc;
+  class Demodulator {
+    constructor(sampleRate) {
+      this.sr = sampleRate;
+      const N = this.N = Math.round(sampleRate / RES);
+      this.W = N / sampleRate;                 // analysis window length (s)
+      this.hop = Math.round(N / 4);
+      this.hopDur = this.hop / sampleRate;
+      this.ring = new Float32Array(N);
+      this.x = new Float32Array(N);
+      this.win = new Float32Array(N);
+      for (let i = 0; i < N; i++) this.win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N);
+      this.wpos = 0;
+      this.toHop = this.hop;
+      this.updateFreqs();
+      this.amp = [new Float32Array(TONES), new Float32Array(TONES)];
+      this.scratch = new Float32Array(TONES);
+      this.energy = new Float64Array(DATA_TONES);
+      this.rx = [0, 1].map(() => this.freshRx());
+      this.hist = [[], []];                     // recent hops per band, for symbol timing
+      this.lastActive = [-1e9, -1e9];
+      this.level = [0, 0];
+      this.rms = 0;
+      this.time = 0;
+      this.tx = null;
+      this.deaf = [false, false];
+      this.selfHear = false;
+      this.syncHops = Math.max(4, Math.round(0.048 / this.hopDur));
+      this.stats = { syncs: 0, frames: 0, crcFail: 0, retimed: 0 };
+      this.onFrame = this.onSync = this.onProgress = this.onAbort = null;
     }
 
-    function encodeDiff16FSK(bytes) {
-      const payloadWithCrc = new Uint8Array(bytes.length + 1);
-      payloadWithCrc.set(bytes, 0);
-      payloadWithCrc[bytes.length] = crc8(bytes);
-
-      const symbols = [0, 15, 0, 15]; // preamble sync
-      let prevTone = 15;
-      for (let i = 0; i < payloadWithCrc.length; i++) {
-        const hi = (payloadWithCrc[i] >> 4) & 0x0f;
-        const lo = payloadWithCrc[i] & 0x0f;
-        const t1 = (prevTone + hi + 1) & 0x0f;
-        const t2 = (t1 + lo + 1) & 0x0f;
-        symbols.push(t1, t2);
-        prevTone = t2;
-      }
-      return symbols;
+    updateFreqs() {
+      this.coef = [0, 1].map((b) => Float64Array.from(bandFreqs(b), (f) => 2 * Math.cos(2 * Math.PI * f / this.sr)));
     }
 
-    class UltrasonicModem {
-      constructor() {
-        this.ctx = null;
-        this.analyser = null;
-        this.micStream = null;
-        this.presetKey = 'audible'; // default to Audible for guaranteed pairing
-        this.role = 'A';
-        this.seqCounter = 1;
-        this.lastRxSeq = -1;
-        this.pendingAckTimer = null;
-        this.pendingRetries = 0;
-        this.beaconTimer = null;
-        this.sfxEnabled = false;
-        this.practiceChirps = true;
-        this.lastPeakFreq = 1406;
-        this._demodActive = false;
-      }
+    freshRx() {
+      // state 0: idle, 1: hearing the sync tone, 2: recording data symbols
+      return { state: 0, bits: 0, plateau: 0, prevAmp: 0, prevT: 0, syncStart: 0, taus: [], tau: 0, vals: [], expect: 0 };
+    }
 
-      getPreset() {
-        return BAND_PRESETS[this.presetKey] || BAND_PRESETS.audible;
-      }
-
-      getTxBandBase() {
-        const p = this.getPreset();
-        return this.role === 'A' ? p.bandABase : p.bandBBase;
-      }
-
-      getRxBandBase() {
-        const p = this.getPreset();
-        if (state.mode === 'pair') {
-          return this.beaconTimer ? p.bandBBase : p.bandABase;
+    // samples: Float32Array of mono audio; t0: audio-clock time of samples[0]
+    process(samples, t0) {
+      const { ring, N } = this;
+      let sumsq = 0;
+      for (let i = 0; i < samples.length; i++) {
+        const s = samples[i];
+        sumsq += s * s;
+        ring[this.wpos] = s;
+        if (++this.wpos === N) this.wpos = 0;
+        if (--this.toHop === 0) {
+          this.toHop = this.hop;
+          this.time = t0 + (i + 1) / this.sr;
+          this.analyze();
         }
-        return this.role === 'A' ? p.bandBBase : p.bandABase;
       }
+      this.rms = Math.max(Math.sqrt(sumsq / Math.max(1, samples.length)), this.rms * 0.85);
+    }
 
-      async initAudio(requestMic = false) {
-        const preset = this.getPreset();
-        if (!this.ctx) {
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          try {
-            this.ctx = new AudioCtx({ sampleRate: preset.preferredSampleRate });
-          } catch (e) {
-            this.ctx = new AudioCtx();
+    analyze() {
+      const { N, ring, x, win } = this;
+      let p = this.wpos;
+      for (let i = 0; i < N; i++) {
+        x[i] = ring[p] * win[i];
+        if (++p === N) p = 0;
+      }
+      const scale = 4 / N;
+      const dom = [-1, -1];
+      const loose = [false, false];
+      const peaks = [0, 0];
+      const syncish = [false, false];
+      for (let b = 0; b < 2; b++) {
+        const coef = this.coef[b];
+        const amp = this.amp[b];
+        let best = -1, e1 = 0, e2 = 0;
+        for (let k = 0; k < TONES; k++) {
+          const c = coef[k];
+          let s1 = 0, s2 = 0;
+          for (let i = 0; i < N; i++) {
+            const s0 = x[i] + c * s1 - s2;
+            s2 = s1;
+            s1 = s0;
           }
+          const a = Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) * scale;
+          amp[k] = a;
+          if (a > e1) { e2 = e1; e1 = a; best = k; } else if (a > e2) e2 = a;
         }
-        if (this.ctx.state === 'suspended') {
-          try { await this.ctx.resume(); } catch (e) {}
-        }
-
-        try {
-          const buf = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
-          const src = this.ctx.createBufferSource();
-          src.buffer = buf;
-          src.connect(this.ctx.destination);
-          src.start(0);
-        } catch (e) {}
-
-        const sr = this.ctx.sampleRate || 48000;
-        const srLabel = document.getElementById('modemSrLabel');
-        if (srLabel) srLabel.textContent = (sr / 1000).toFixed(1) + ' kHz';
-        const diagSr = document.getElementById('diagSampleRate');
-        if (diagSr) diagSr.textContent = sr + ' Hz';
-
-        if (sr <= 44100 && this.presetKey === 'ultra48') {
-          this.presetKey = 'ultra44';
-          const sel = document.getElementById('selectFreqBand');
-          if (sel) sel.value = 'ultra44';
-          updateBandUI();
-        }
-
-        if (requestMic && !this.micStream) {
-          try {
-            this.micStream = await navigator.mediaDevices.getUserMedia({
-              audio: {
-                echoCancellation: false,
-                noiseSuppression: false,
-                autoGainControl: false
-              }
-            });
-          } catch (e1) {
-            try {
-              this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            } catch (e2) {
-              console.warn('Microphone permission or hardware unavailable', e2);
-            }
-          }
-
-          if (this.micStream) {
-            const source = this.ctx.createMediaStreamSource(this.micStream);
-            this.analyser = this.ctx.createAnalyser();
-            this.analyser.fftSize = 1024; // 1024 points for fast 21ms response
-            this.analyser.smoothingTimeConstant = 0.05;
-            source.connect(this.analyser);
-            this.startDemodulator();
-            const micState = document.getElementById('pairMicState');
-            if (micState) {
-              micState.textContent = 'Mic Active (Live)';
-              micState.className = 'text-emerald-400';
-            }
-          } else {
-            this.analyser = this.ctx.createAnalyser();
-            this.analyser.fftSize = 1024;
-            this.analyser.smoothingTimeConstant = 0.05;
-            const micState = document.getElementById('pairMicState');
-            if (micState) {
-              micState.textContent = 'Loopback Ready';
-              micState.className = 'text-cyan-400';
-            }
-          }
-        } else if (!this.analyser && this.ctx) {
-          this.analyser = this.ctx.createAnalyser();
-          this.analyser.fftSize = 1024;
-          this.analyser.smoothingTimeConstant = 0.05;
-        }
+        const sc = this.scratch;
+        sc.set(amp);
+        sc.sort();
+        const med = 0.5 * (sc[8] + sc[9]);
+        this.level[b] = Math.max(e1, this.level[b] * 0.92);
+        peaks[b] = e1;
+        loose[b] = e1 > MIN_AMP && e1 > 4 * med;
+        if (e1 > MIN_AMP && e1 > 5 * med && e1 > 1.25 * e2) dom[b] = best;
+        if (dom[b] >= 0) this.lastActive[b] = this.time;
+        syncish[b] = best === SYNC && e1 > MIN_AMP && e1 > 3 * med;
       }
-
-      startDemodulator() {
-        if (this._demodActive) return;
-        this._demodActive = true;
-        let rxSymbols = [];
-        let lastTone = -1;
-        let toneHold = 0;
-        let prevTone = 15;
-        let reading = false;
-        let expectedBytes = 0;
-        let rxNibbles = [];
-
-        const step = () => {
-          if (!this._demodActive) return;
-          if (this.analyser && this.ctx && this.ctx.state === 'running') {
-            const p = this.getPreset();
-            const rxBase = this.getRxBandBase();
-            const binHz = this.ctx.sampleRate / this.analyser.fftSize;
-            const bins = new Uint8Array(this.analyser.frequencyBinCount);
-            this.analyser.getByteFrequencyData(bins);
-
-            let maxVal = 0;
-            let peakTone = -1;
-            let sumNoise = 0;
-
-            for (let t = 0; t < 16; t++) {
-              const f = rxBase + t * p.stepHz;
-              const bIdx = Math.round(f / binHz);
-              const val = (bIdx > 0 && bIdx < bins.length - 1)
-                ? (bins[bIdx - 1] + bins[bIdx] * 2 + bins[bIdx + 1]) / 4
-                : bins[bIdx] || 0;
-              sumNoise += val;
-              if (val > maxVal) {
-                maxVal = val;
-                peakTone = t;
-              }
-            }
-
-            const avgNoise = sumNoise / 16;
-            const diagSignal = document.getElementById('diagSignalLevel');
-            if (diagSignal) {
-              const snr = maxVal - avgNoise;
-              diagSignal.textContent = snr > 12 ? (snr > 30 ? 'STRONG' : 'OK') : 'WAITING';
-              diagSignal.className = snr > 12 ? 'text-xs font-bold text-emerald-300 mono' : 'text-xs font-bold text-slate-400 mono';
-            }
-
-            if (maxVal > avgNoise * 1.4 + 10 && peakTone >= 0) {
-              if (peakTone === lastTone) {
-                toneHold++;
-                if (toneHold === 2) {
-                  rxSymbols.push(peakTone);
-                  if (rxSymbols.length > 40) rxSymbols.shift();
-
-                  const n = rxSymbols.length;
-                  if (!reading) {
-                    if (n >= 4 && rxSymbols[n-4] === 0 && rxSymbols[n-3] === 15 && rxSymbols[n-2] === 0 && rxSymbols[n-1] === 15) {
-                      reading = true;
-                      rxNibbles = [];
-                      prevTone = 15;
-                    }
-                  } else {
-                    const t1 = peakTone;
-                    const diffNibble = (t1 - prevTone - 1 + 16) & 0x0f;
-                    prevTone = t1;
-                    rxNibbles.push(diffNibble);
-
-                    if (rxNibbles.length >= 2 && (rxNibbles.length % 2) === 0) {
-                      const byteIdx = (rxNibbles.length / 2) - 1;
-                      const byteVal = (rxNibbles[byteIdx * 2] << 4) | rxNibbles[byteIdx * 2 + 1];
-                      if (byteIdx === 0) {
-                        const pktType = byteVal;
-                        if (pktType === PKT_TYPES.HELLO || pktType === PKT_TYPES.HELLO_ACK) expectedBytes = 3;
-                        else if (pktType === PKT_TYPES.BALL_CROSS) expectedBytes = 6;
-                        else if (pktType === PKT_TYPES.BOMB_DROP) expectedBytes = 3;
-                        else if (pktType === PKT_TYPES.ACK) expectedBytes = 2;
-                        else expectedBytes = 4;
-                      }
-
-                      if (byteIdx + 1 === expectedBytes + 1) {
-                        reading = false;
-                        const fullBytes = new Uint8Array(expectedBytes + 1);
-                        for (let k = 0; k < expectedBytes + 1; k++) {
-                          fullBytes[k] = (rxNibbles[k * 2] << 4) | rxNibbles[k * 2 + 1];
-                        }
-                        const payload = fullBytes.slice(0, expectedBytes);
-                        const expectedCrc = fullBytes[expectedBytes];
-                        if (crc8(payload) === expectedCrc) {
-                          this.handleDecodedPacket(payload);
-                        }
-                        rxNibbles = [];
-                      }
-                    }
-                  }
-                }
-              } else {
-                lastTone = peakTone;
-                toneHold = 1;
-              }
-            } else {
-              toneHold = 0;
-            }
-          }
-          requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
-      }
-
-      handleDecodedPacket(pkt) {
-        if (!pkt || pkt.length < 2) return;
-        const type = pkt[0];
-        const seq = pkt[1];
-
-        const fStatus = document.getElementById('diagFrameStatus');
-        if (fStatus) fStatus.textContent = 'RX PKT #' + type;
-
-        if (type === PKT_TYPES.HELLO) {
-          if (state.mode === 'pair') {
-            this.stopBeacon();
-            this.role = 'B';
-            showToast('🎉 HELLO HEARD! ANSWERING...');
-            const ackPkt = new Uint8Array([PKT_TYPES.HELLO_ACK, seq, state.targetPoints]);
-            this.transmitFrame(ackPkt, false);
-            setTimeout(() => { startMatch('duel'); }, 300);
-          }
-        } else if (type === PKT_TYPES.HELLO_ACK) {
-          if (state.mode === 'pair') {
-            this.stopBeacon();
-            this.role = 'A';
-            showToast('🎉 PHONE ANSWERED! SERVING...');
-            setTimeout(() => { startMatch('duel'); }, 200);
-          }
-        } else if (type === PKT_TYPES.BALL_CROSS) {
-          if (!state.ballInYourCourt && (state.mode === 'duel' || state.mode === 'practice' || state.mode === 'sim')) {
-            this.acknowledgeSeq(seq);
-            const ackPkt = new Uint8Array([PKT_TYPES.ACK, seq]);
-            this.transmitFrame(ackPkt, false);
-
-            const normX = pkt[2] / 255.0;
-            const spin = ((pkt[4] & 0x0f) / 30.0) - 0.25;
-            const smash = (pkt[4] & 0x80) !== 0;
-            const gem = (pkt[5] >> 5) & 0x07;
-            triggerIncomingBallFromPortal(gem, smash, spin, normX);
-          }
-        } else if (type === PKT_TYPES.BOMB_DROP) {
-          if (state.mode === 'duel' || state.mode === 'sim') {
-            const normX = pkt[2] / 255.0;
-            state.fallingBomb = {
-              x: Math.max(30, Math.min(state.width - 30, normX * state.width)),
-              y: 20, vy: 4.3, r: 13
-            };
-            showToast('💣 INCOMING BOMB!');
-          }
-        } else if (type === PKT_TYPES.ACK) {
-          this.acknowledgeSeq(seq);
-        }
-      }
-
-      startBeacon() {
-        this.stopBeacon();
-        this.role = 'A';
-        const sendOne = () => {
-          if (state.mode !== 'pair') { this.stopBeacon(); return; }
-          const seq = (this.seqCounter++) & 0xff;
-          const pkt = new Uint8Array([PKT_TYPES.HELLO, seq, state.targetPoints]);
-          this.transmitFrame(pkt, false);
-          const fStatus = document.getElementById('diagFrameStatus');
-          if (fStatus) fStatus.textContent = 'CALLING (Band A)...';
-        };
-        sendOne();
-        this.beaconTimer = setInterval(sendOne, 750);
-      }
-
-      stopBeacon() {
-        if (this.beaconTimer) {
-          clearInterval(this.beaconTimer);
-          this.beaconTimer = null;
-        }
-      }
-
-      async transmitFrame(bytes, expectAck = false, onAckTimeout = null) {
-        await this.initAudio(false);
-        if (!this.ctx) return;
-
-        const preset = this.getPreset();
-        const symbols = encodeDiff16FSK(bytes);
-        const baseFreq = this.getTxBandBase();
-        const nyquist = (this.ctx.sampleRate / 2) - 150;
-        const symSec = preset.symbolMs / 1000;
-        const now = this.ctx.currentTime + 0.01;
-
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.linearRampToValueAtTime(0.40, now + 0.005);
-
-        for (let i = 0; i < symbols.length; i++) {
-          const targetFreq = Math.min(nyquist, baseFreq + symbols[i] * preset.stepHz);
-          const tStart = now + i * symSec;
-          osc.frequency.setValueAtTime(targetFreq, tStart);
-          this.lastPeakFreq = Math.round(targetFreq);
-        }
-
-        const totalDur = symbols.length * symSec;
-        gain.gain.setValueAtTime(0.40, now + totalDur - 0.005);
-        gain.gain.linearRampToValueAtTime(0.0001, now + totalDur);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start(now);
-        osc.stop(now + totalDur + 0.01);
-
-        const led = document.getElementById('modemLed');
-        if (led) {
-          led.className = 'inline-block w-2 h-2 rounded-full bg-fuchsia-400 shadow-[0_0_8px_#e879f9]';
-          setTimeout(() => {
-            if (led) led.className = 'inline-block w-2 h-2 rounded-full bg-emerald-400';
-          }, Math.max(120, totalDur * 1000));
-        }
-
-        if (expectAck) {
-          clearTimeout(this.pendingAckTimer);
-          this.pendingRetries = 0;
-          const retryFn = () => {
-            if (this.pendingRetries >= 4) {
-              const ackLbl = document.getElementById('modemAckLabel');
-              if (ackLbl) ackLbl.textContent = 'ACK: SIM/OK';
-              if (onAckTimeout) onAckTimeout();
-              return;
-            }
-            this.pendingRetries++;
-            const ackLbl = document.getElementById('modemAckLabel');
-            if (ackLbl) ackLbl.textContent = 'RETRY #' + this.pendingRetries;
-            this.transmitFrame(bytes, false);
-            this.pendingAckTimer = setTimeout(retryFn, 400);
-          };
-          this.pendingAckTimer = setTimeout(retryFn, 400);
-        }
-
-        return { symbols, durationMs: Math.round(totalDur * 1000), baseFreq };
-      }
-
-      acknowledgeSeq(seq) {
-        clearTimeout(this.pendingAckTimer);
-        const ackLbl = document.getElementById('modemAckLabel');
-        if (ackLbl) ackLbl.textContent = 'ACK #' + (seq & 0x0f) + ' OK';
-      }
-
-      sampleSpectrum() {
-        if (!this.analyser || !this.ctx) return null;
-        const bins = new Uint8Array(this.analyser.frequencyBinCount);
-        this.analyser.getByteFrequencyData(bins);
-        const sr = this.ctx.sampleRate;
-        const binHz = sr / this.analyser.fftSize;
-        const preset = this.getPreset();
-
-        const minHz = Math.max(100, preset.bandABase - 200);
-        const maxHz = preset.bandBBase + 16 * preset.stepHz + 200;
-        const startBin = Math.max(0, Math.floor(minHz / binHz));
-        const endBin = Math.min(bins.length - 1, Math.ceil(maxHz / binHz));
-
-        let maxVal = 0;
-        let maxBin = startBin;
-        for (let b = startBin; b <= endBin; b++) {
-          if (bins[b] > maxVal) {
-            maxVal = bins[b];
-            maxBin = b;
-          }
-        }
-        const peakFreq = Math.round(maxBin * binHz);
-        if (maxVal > 25) {
-          this.lastPeakFreq = peakFreq;
-        }
-        return { bins, startBin, endBin, maxVal, peakFreq, binHz };
-      }
-
-      playGameSfx(freq = 520, dur = 0.04) {
-        if (!this.sfxEnabled || !this.ctx) return;
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now);
-        gain.gain.setValueAtTime(0.08, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + dur);
+      this.updateDeaf(loose, peaks);
+      for (let b = 0; b < 2; b++) {
+        const hist = this.hist[b];
+        hist.push({ t: this.time, a: this.amp[b].slice() });
+        if (hist.length > 140) hist.shift();
+        if (this.deaf[b]) this.rx[b] = this.freshRx();
+        else this.receive(b, syncish[b]);
       }
     }
 
-    const modem = new UltrasonicModem();
-
-    const state = {
-      mode: 'title',
-      paused: false,
-      targetPoints: 7,
-      scoreYou: 0,
-      scoreThem: 0,
-      rallyHits: 0,
-      heatMultiplier: 1,
-      bombCharge: 0,
-      loadedGem: 0,
-      activeEffectOnYou: 0,
-      activeEffectTimer: 0,
-      paddleStunTimer: 0,
-      ballInYourCourt: true,
-      waitingForReturnTimer: 0,
-      width: 380,
-      height: 600,
-      paddle: {
-        x: 190,
-        y: 530,
-        w: 88,
-        h: 14,
-        vx: 0,
-        prevX: 190,
-        lastSwipeVy: 0
-      },
-      ball: {
-        x: 190,
-        y: 300,
-        vx: 3.2,
-        vy: 5.0,
-        r: 9,
-        spin: 0,
-        smash: false,
-        trail: []
-      },
-      mirageBalls: [],
-      courtGem: null,
-      fallingBomb: null,
-      vortex: null,
-      particles: [],
-      keys: { left: false, right: false }
-    };
-
-    const canvas = document.getElementById('gameCanvas');
-    const ctx2d = canvas.getContext('2d');
-    const spectrumCanvas = document.getElementById('spectrumCanvas');
-    const specCtx = spectrumCanvas.getContext('2d');
-
-    function resizeCanvas() {
-      const container = document.getElementById('canvasContainer');
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      state.width = Math.max(280, Math.floor(rect.width));
-      state.height = Math.max(360, Math.floor(rect.height));
-      canvas.width = state.width;
-      canvas.height = state.height;
-      state.paddle.y = state.height - 54;
-      state.paddle.x = Math.min(state.width - state.paddle.w / 2, Math.max(state.paddle.w / 2, state.paddle.x));
-    }
-
-    window.addEventListener('resize', resizeCanvas);
-
-    function showToast(msg) {
-      const t = document.getElementById('courtToast');
-      if (!t) return;
-      t.textContent = msg;
-      t.classList.remove('hidden');
-      clearTimeout(showToast._timer);
-      showToast._timer = setTimeout(() => t.classList.add('hidden'), 1550);
-    }
-
-    function updateBandUI() {
-      const p = modem.getPreset();
-      const badge = document.getElementById('hudBandBadge');
-      const freqLbl = document.getElementById('modemFreqLabel');
-      const inaud = document.getElementById('badgeInaudible');
-      const rangePair = document.getElementById('pairSpectrumRange');
-
-      if (badge) badge.textContent = p.shortBadge;
-      if (freqLbl) freqLbl.textContent = 'TX/RX: ' + p.rangeLabel;
-      if (rangePair) rangePair.textContent = 'FFT Spectrum (' + p.rangeLabel + ')';
-      if (inaud) {
-        if (p.inaudible) {
-          inaud.textContent = 'Silent to Humans (>20kHz)';
-          inaud.className = 'text-[10px] mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-        } else {
-          inaud.textContent = 'Audible Chirps';
-          inaud.className = 'text-[10px] mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30';
-        }
-      }
-    }
-
-    function updateHud() {
-      document.getElementById('scoreYou').textContent = state.scoreYou;
-      document.getElementById('scoreThem').textContent = state.scoreThem;
-
-      state.heatMultiplier = state.rallyHits >= 12 ? 3 : (state.rallyHits >= 6 ? 2 : 1);
-      const heatBadge = document.getElementById('hudHeatBadge');
-      if (state.heatMultiplier > 1) {
-        heatBadge.classList.remove('hidden');
-        heatBadge.textContent = '🔥 HEAT ×' + state.heatMultiplier;
+    // Called when we start transmitting. We stop listening while we can hear
+    // ourselves (the low band's harmonics land in the high band, so a low-band
+    // transmission deafens both bands).
+    noteTx(band, t0, t1) {
+      const tx = this.tx;
+      if (tx && t0 <= tx.t1 + 0.3) {
+        tx.t1 = Math.max(tx.t1, t1);
+        tx.band = band;
       } else {
-        heatBadge.classList.add('hidden');
-      }
-
-      const fill = document.getElementById('bombMeterFill');
-      if (fill) fill.style.width = Math.min(100, state.bombCharge) + '%';
-
-      const btnBomb = document.getElementById('btnDropBomb');
-      if (btnBomb) {
-        if (state.bombCharge >= 100) {
-          btnBomb.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-rose-600 text-white border border-rose-400 shadow cursor-pointer animate-pulse transition';
-        } else {
-          btnBomb.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-rose-600/30 text-rose-300 border border-rose-500/40 opacity-50 cursor-not-allowed transition';
-        }
-      }
-
-      const gemObj = GEM_TYPES[state.loadedGem] || GEM_TYPES[0];
-      const gemLbl = document.getElementById('activeGemLabel');
-      if (gemLbl) {
-        gemLbl.textContent = gemObj.id ? (gemObj.icon + ' ' + gemObj.name) : 'None';
+        this.tx = { band, t0, t1, saw: false, quiet: 0, peak: 0 };
       }
     }
 
-    function spawnCourtGem() {
-      const id = 1 + Math.floor(Math.random() * 7);
-      state.courtGem = {
-        id,
-        x: 50 + Math.random() * (state.width - 100),
-        y: 140 + Math.random() * (state.height * 0.42),
-        r: 16,
-        pulse: 0
+    // While we sing we can't hear the other phone: our own band is ignored
+    // until our chirp (delayed by speaker and microphone latency, plus room
+    // echo) has died away. The low band's harmonics land in the high band, so
+    // a low-band chirp also mutes the high band, but only while it plays: the
+    // other phone never answers until our whole frame has reached it.
+    updateDeaf(loose, peaks) {
+      const tx = this.tx;
+      const t = this.time;
+      this.deaf[0] = this.deaf[1] = false;
+      if (!tx || this.selfHear || t < tx.t0) return;
+      const own = tx.band;
+      tx.peak = Math.max(tx.peak, peaks[own]);
+      if (loose[own] && peaks[own] > 0.12 * tx.peak) { tx.saw = true; tx.quiet = 0; } else tx.quiet++;
+      let deafOwn;
+      if (t <= tx.t1) deafOwn = true;
+      else if (t > tx.t1 + 0.4) deafOwn = false;
+      else deafOwn = tx.saw ? tx.quiet < 4 : t < tx.t1 + 0.1;
+      this.deaf[own] = deafOwn;
+      if (own === 0) this.deaf[1] = t <= tx.t1 + 0.03;
+      if (!deafOwn && t > tx.t1) this.tx = null;
+    }
+
+    receive(b, syncish) {
+      const rx = this.rx[b];
+      const t = this.time;
+      const syncAmp = this.amp[b][SYNC];
+      if (rx.state === 2) {
+        this.progress(b, rx);
+        const lastTau = rx.taus[rx.taus.length - 1];
+        if (t > Math.max(rx.tau, lastTau) + rx.expect * T_SYM + 0.032) this.finish(b, rx);
+        return;
+      }
+      // The sync tone must win at least 7 of the last 10 hops (~50 ms).
+      rx.bits = ((rx.bits << 1) | (syncish ? 1 : 0)) & 1023;
+      if (rx.state === 0) {
+        let count = 0, oldest = 0;
+        for (let j = 0; j < 10; j++) if (rx.bits & (1 << j)) { count++; oldest = j; }
+        if (count >= 7) {
+          rx.state = 1;
+          rx.syncStart = t - oldest * this.hopDur;
+          rx.plateau = this.syncPlateau(b, rx.syncStart, t);
+          this.stats.syncs++;
+          if (this.onSync) this.onSync(b, t);
+        }
+      } else if (syncish) {
+        rx.plateau = this.syncPlateau(b, rx.syncStart, t);
+      } else if (syncAmp < 0.5 * rx.plateau) {
+        this.startData(b, rx, syncAmp);
+      } else if (t - rx.syncStart > 0.3) {
+        this.rx[b] = this.freshRx();  // a steady tone, not a frame
+        return;
+      }
+      rx.prevAmp = syncAmp;
+      rx.prevT = t;
+    }
+
+    // Typical sync amplitude once the tone is fully inside the window. A high
+    // percentile skips the ramp-up hops and ignores the odd reverb spike.
+    syncPlateau(b, from, to) {
+      const amps = this.hist[b].filter((h) => h.t >= from && h.t <= to).map((h) => h.a[SYNC]).sort((p, q) => p - q);
+      return amps.length ? amps[Math.floor(amps.length * 0.8)] : 0;
+    }
+
+    // The sync tone has ended. Work out when the first data symbol started.
+    // A sliding window reads half-amplitude when it straddles an edge, so each
+    // edge is half a window before its half-amplitude crossing. Reverb smears
+    // the falling edge, so the rising edge of the sync tone is tried first.
+    startData(b, rx, syncAmp) {
+      const t = this.time;
+      const half = 0.5 * rx.plateau;
+      const frac = rx.prevAmp > syncAmp ? (rx.prevAmp - half) / (rx.prevAmp - syncAmp) : 1;
+      const fall = rx.prevT + Math.max(0, Math.min(1, frac)) * (t - rx.prevT) - this.W / 2;
+      let rise = null;
+      const hist = this.hist[b];
+      for (let i = 1; i < hist.length; i++) {
+        const h = hist[i], p = hist[i - 1];
+        if (h.t < rx.syncStart - 0.06) continue;
+        if (h.t > rx.syncStart + 0.06) break;
+        if (h.a[SYNC] >= half && p.a[SYNC] < half) {
+          const f = (half - p.a[SYNC]) / (h.a[SYNC] - p.a[SYNC]);
+          rise = p.t + f * (h.t - p.t) - this.W / 2 + PRE_SYMS * T_SYM;
+          break;
+        }
+      }
+      rx.state = 2;
+      rx.taus = rise === null ? [fall] : [rise, fall];
+      rx.tau = rx.taus[0];
+      rx.expect = 4;
+      rx.vals = [];
+    }
+
+    // Pick the strongest tone in the middle of each symbol. The previous tone
+    // is never a candidate (differential coding forbids repeats), which keeps
+    // its reverb tail from being mistaken for the next symbol. The returned
+    // array carries a "clarity" score: how much each winner dominated, which
+    // peaks when the symbol windows line up with the real symbol boundaries.
+    symbols(hops, tau, count) {
+      const vals = [];
+      const e = this.energy;
+      let prev = DATA_TONES - 1;
+      let clarity = 0;
+      for (let i = 0; i < count; i++) {
+        const a = tau + i * T_SYM + this.W + 0.0025;
+        const z = tau + (i + 1) * T_SYM - 0.0025;
+        e.fill(0);
+        let n = 0;
+        for (const h of hops) {
+          if (h.t < a || h.t > z) continue;
+          for (let k = 0; k < DATA_TONES; k++) e[k] += h.a[k] * h.a[k];
+          n++;
+        }
+        if (!n) {
+          const c = tau + (i + 0.5) * T_SYM + this.W / 2;
+          let near = null;
+          for (const h of hops) if (!near || Math.abs(h.t - c) < Math.abs(near.t - c)) near = h;
+          if (!near || Math.abs(near.t - c) > T_SYM / 2) break;
+          for (let k = 0; k < DATA_TONES; k++) e[k] = near.a[k] * near.a[k];
+        }
+        let best = -1, be = -1, total = 0;
+        for (let k = 0; k < DATA_TONES; k++) {
+          if (k === prev) continue;
+          total += e[k];
+          if (e[k] > be) { be = e[k]; best = k; }
+        }
+        clarity += total > 0 ? be / total : 0;
+        vals.push((best - prev - 1 + 2 * DATA_TONES) % DATA_TONES);
+        prev = best;
+      }
+      vals.clarity = vals.length ? clarity / vals.length : 0;
+      return vals;
+    }
+
+    progress(b, rx) {
+      const done = Math.floor((this.time - rx.tau + 0.0025) / T_SYM);
+      if (done <= rx.vals.length) return;
+      rx.vals = this.symbols(this.hist[b], rx.tau, Math.min(done, rx.expect));
+      if (rx.vals.length) rx.expect = frameSymbols(rx.vals[0] >> 1);
+      if (rx.vals.length && this.onProgress) this.onProgress(b, rx.vals, rx.expect);
+    }
+
+    // Try symbol timings around the edge estimates, best-aligned first, and
+    // keep the first that passes the CRC. Only a handful are checked, so a
+    // burst of noise has little chance of slipping a bogus frame through.
+    finish(b, rx) {
+      this.rx[b] = this.freshRx();
+      const hops = this.hist[b];
+      const last = hops[hops.length - 1].t;
+      const cands = [];
+      for (const base of rx.taus) {
+        for (let off = -0.015; off <= 0.0151; off += 0.0025) {
+          const tau = base + off;
+          if (cands.some((c) => Math.abs(c.tau - tau) < 0.001)) continue;
+          const head = this.symbols(hops, tau, 1);
+          if (!head.length) continue;
+          const n = frameSymbols(head[0] >> 1);
+          if (tau + n * T_SYM - 0.0025 > last) continue;
+          const vals = this.symbols(hops, tau, n);
+          if (vals.length === n) cands.push({ tau, vals, nominal: off === 0 && base === rx.taus[0] });
+        }
+      }
+      cands.sort((p, q) => q.vals.clarity - p.vals.clarity);
+      for (let i = 0; i < Math.min(5, cands.length); i++) {
+        const frame = decodeFrame(cands[i].vals);
+        if (!frame) continue;
+        if (!cands[i].nominal) this.stats.retimed++;
+        frame.band = b;
+        frame.time = this.time;
+        this.stats.frames++;
+        if (this.onFrame) this.onFrame(frame);
+        return;
+      }
+      this.stats.crcFail++;
+      if (this.onAbort) this.onAbort(b, 'crc');
+    }
+
+    // Carrier sense: is anyone mid-transmission in this band?
+    busy(b) {
+      return this.rx[b].state !== 0 || this.time - this.lastActive[b] < 0.1;
+    }
+  }
+
+  return {
+    RES, TONES, DATA_TONES, SYNC, BAND_BASE, T_SYM, PRE_SYMS, TYPES, TYPE_NAMES, LAYOUT,
+    toneFreq, bandFreqs, frameSymbols, airtime, crc8, encodeFrame, decodeFrame, peekX,
+    valuesToTones, synthFrame, Demodulator, FREQ_PROFILES, setProfile, getProfile: () => currentProfile,
+  };
+})();
+window.ChirpCore = ChirpCore;
+</script>
+
+<script>
+'use strict';
+const { TYPES, T_SYM, PRE_SYMS, SYNC, TONES } = ChirpCore;
+
+// ---------------------------------------------------------------------------
+// Small helpers
+// ---------------------------------------------------------------------------
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a, b) => a + Math.random() * (b - a);
+const wallClock = () => performance.now() / 1000;
+const $ = (sel) => document.querySelector(sel);
+
+function hexRgb(h) {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgba(h, a) {
+  const [r, g, b] = hexRgb(h);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function mix(h1, h2, t) {
+  const a = hexRgb(h1), b = hexRgb(h2);
+  const r = Math.round(lerp(a[0], b[0], t));
+  const g = Math.round(lerp(a[1], b[1], t));
+  const bl = Math.round(lerp(a[2], b[2], t));
+  return `rgb(${r},${g},${bl})`;
+}
+
+// ---------------------------------------------------------------------------
+// Game rules & balance constants
+// ---------------------------------------------------------------------------
+const COURT_W = 100;
+const PADDLE_W = 28;
+const PADDLE_H = 3.6;
+const BALL_R = 3.2;
+const GEM_R = 4.2;
+const PORTAL_IN = 2.4;
+const PORTAL_OUT = 10;
+const FLICK_MS = 140;
+const FLICK_DY = -18;
+const SMASH_MULT = 1.35;
+const PLAYER_COLORS = ['#26e3ff', '#ff3d9a'];
+const SPEEDS = [102, 118, 134, 150, 166, 182, 198, 215];
+const TRICKS = [
+  { name: 'BLAZE', icon: '🔥', color: '#ff7a1a', desc: 'Arrives 45% faster, trailing fire.' },
+  { name: 'PHANTOM', icon: '👻', color: '#c3ccff', desc: 'Turns invisible across the middle of their court.' },
+  { name: 'MIRAGE', icon: '🔱', color: '#7dffb0', desc: 'Splits into three. Only one is real.' },
+  { name: 'BOMB', icon: '💣', color: '#ff4d4d', desc: 'A bomb falls alongside. If it touches their paddle, the paddle is stunned.' },
+  { name: 'VORTEX', icon: '🌀', color: '#9b6bff', desc: 'A black hole opens on their side and bends the ball.' },
+  { name: 'MIRROR', icon: '🔄', color: '#ffe14d', desc: 'Their controls flip left and right.' },
+  { name: 'SHRINK', icon: '🐜', color: '#4dffea', desc: 'Their paddle shrinks to half size.' },
+];
+const RELIABLE = new Set([TYPES.BALL, TYPES.MISS, TYPES.BOMB, TYPES.REMATCH, TYPES.TAUNT]);
+const NULL_SFX = new Proxy({}, { get: () => () => {} });
+const rallyValue = (r) => 1 + (r >= 6 ? 1 : 0) + (r >= 12 ? 1 : 0);
+const baseSpeed = (r) => Math.min(102 + r * 6, 215);
+function speedLevel(speed) {
+  let best = 0;
+  for (let i = 1; i < SPEEDS.length; i++) if (Math.abs(SPEEDS[i] - speed) < Math.abs(SPEEDS[best] - speed)) best = i;
+  return best;
+}
+
+// ---------------------------------------------------------------------------
+// Audio: tone synth (the "voice"), microphone capture and the modem
+// ---------------------------------------------------------------------------
+const CAPTURE_WORKLET = `
+class ChirpCapture extends AudioWorkletProcessor {
+  constructor() { super(); this.size = 512; this.buf = new Float32Array(this.size); this.n = 0; this.t = 0; }
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0];
+    if (ch && ch.length) {
+      let i = 0;
+      while (i < ch.length) {
+        if (this.n === 0) this.t = currentTime + i / sampleRate;
+        const take = Math.min(ch.length - i, this.size - this.n);
+        this.buf.set(ch.subarray(i, i + take), this.n);
+        this.n += take;
+        i += take;
+        if (this.n === this.size) {
+          this.port.postMessage({ t: this.t, s: this.buf }, [this.buf.buffer]);
+          this.buf = new Float32Array(this.size);
+          this.n = 0;
+        }
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('chirp-capture', ChirpCapture);
+`;
+
+class ToneSynth {
+  constructor(ctx, output, volume = 0.6) {
+    this.ctx = ctx;
+    this.out = output;
+    this.volume = volume;
+    this.enabled = true;
+    this.busyUntil = 0;
+  }
+
+  // Phase-continuous FSK: one oscillator retuned on each symbol boundary.
+  play(band, vals, delay = 0.05) {
+    const ctx = this.ctx;
+    const t0 = Math.max(ctx.currentTime + delay, this.busyUntil + 0.02);
+    const freqs = ChirpCore.bandFreqs(band);
+    const tones = ChirpCore.valuesToTones(vals);
+    const t1 = t0 + (PRE_SYMS + tones.length) * T_SYM;
+    this.busyUntil = t1;
+    if (this.enabled && this.volume > 0) {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      osc.frequency.setValueAtTime(freqs[SYNC], t0);
+      tones.forEach((k, i) => osc.frequency.setValueAtTime(freqs[k], t0 + (PRE_SYMS + i) * T_SYM));
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(this.volume, t0 + 0.004);
+      g.gain.setValueAtTime(this.volume, t1 - 0.004);
+      g.gain.linearRampToValueAtTime(0, t1);
+      osc.connect(g);
+      g.connect(this.out);
+      osc.start(t0);
+      osc.stop(t1 + 0.01);
+      osc.onended = () => { osc.disconnect(); g.disconnect(); };
+    }
+    return { t0, t1, tones, lead: t0 - ctx.currentTime, airtime: t1 - ctx.currentTime };
+  }
+}
+
+class AudioModem {
+  setProfile(profId) {
+    ChirpCore.setProfile(profId);
+    if (this.demod) this.demod.updateFreqs();
+  }
+  constructor(ctx, { input, output, volume = 0.6 }) {
+    this.ctx = ctx;
+    this.input = input;
+    this.synth = new ToneSynth(ctx, output, volume);
+    this.demod = new ChirpCore.Demodulator(ctx.sampleRate);
+    this.node = null;
+  }
+
+  async start() {
+    const ctx = this.ctx;
+    const sink = ctx.createGain();
+    sink.gain.value = 0;
+    sink.connect(ctx.destination);
+    try {
+      if (!ctx.audioWorklet) throw new Error('AudioWorklet unavailable');
+      if (!AudioModem.modules.has(ctx)) {
+        const url = URL.createObjectURL(new Blob([CAPTURE_WORKLET], { type: 'application/javascript' }));
+        AudioModem.modules.set(ctx, ctx.audioWorklet.addModule(url));
+      }
+      await AudioModem.modules.get(ctx);
+      this.node = new AudioWorkletNode(ctx, 'chirp-capture', {
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 1, channelCountMode: 'explicit',
+      });
+      this.node.port.onmessage = (e) => this.demod.process(e.data.s, e.data.t);
+    } catch (err) {
+      this.node = ctx.createScriptProcessor(1024, 1, 1);
+      this.node.onaudioprocess = (e) => {
+        const t = (typeof e.playbackTime === "number" && e.playbackTime > 0) ? e.playbackTime : ctx.currentTime;
+        this.demod.process(e.inputBuffer.getChannelData(0), t);
       };
     }
+    this.input.connect(this.node);
+    this.node.connect(sink);
+  }
 
-    function spawnParticles(x, y, color, count = 14) {
-      for (let i = 0; i < count; i++) {
-        const ang = Math.random() * Math.PI * 2;
-        const spd = 1.5 + Math.random() * 4.5;
-        state.particles.push({
-          x,
-          y,
-          vx: Math.cos(ang) * spd,
-          vy: Math.sin(ang) * spd,
-          life: 1.0,
-          color
+  transmit(band, vals) {
+    const r = this.synth.play(band, vals);
+    this.demod.noteTx(band, r.t0, r.t1);
+    return r;
+  }
+
+  stop() {
+    try { this.input.disconnect(this.node); } catch (e) { /* already gone */ }
+    try { this.node.disconnect(); } catch (e) { /* already gone */ }
+    if (this.node.port) this.node.port.onmessage = null;
+    this.node.onaudioprocess = null;
+  }
+}
+AudioModem.modules = new WeakMap();
+
+// A transport moves frames between two players. AudioTransport goes through
+// the speaker and microphone; VirtualTransport is an in-memory stand-in with
+// the same timing, used for practice against the CPU.
+class AudioTransport {
+  constructor(modem) {
+    this.modem = modem;
+    this.onFrame = this.onSync = this.onProgress = this.onAbort = null;
+    const d = modem.demod;
+    d.onFrame = (f) => this.onFrame && this.onFrame(f);
+    d.onSync = (b, t) => this.onSync && this.onSync(b, t);
+    d.onProgress = (b, v, exp) => this.onProgress && this.onProgress(b, v, exp);
+    d.onAbort = (b, why) => this.onAbort && this.onAbort(b, why);
+  }
+  send(band, type, seq, fields) {
+    const vals = ChirpCore.encodeFrame(type, seq, fields);
+    return this.modem.transmit(band, vals);
+  }
+  busy(b) { return this.modem.demod.busy(b); }
+  stats() { return this.modem.demod.stats; }
+}
+
+// Emulates over-the-air audio delivery without Web Audio or a microphone.
+class VirtualAir {
+  constructor(clock, synths = [null, null]) {
+    this.clock = clock;
+    this.synths = synths;
+    this.flights = [];
+    this.eps = [];
+    this.lastActive = [-1e9, -1e9];
+  }
+  endpoint() {
+    const ep = { onFrame: null, onSync: null, onProgress: null, onAbort: null };
+    this.eps.push(ep);
+    const self = this;
+    return {
+      send(band, type, seq, fields) { return self.send(band, type, seq, fields); },
+      busy(band) { return self.clock() - self.lastActive[band] < 0.1; },
+      stats() { return { frames: 0, syncs: 0, crcFail: 0, retimed: 0 }; },
+      set onFrame(cb) { ep.onFrame = cb; },
+      set onSync(cb) { ep.onSync = cb; },
+      set onProgress(cb) { ep.onProgress = cb; },
+      set onAbort(cb) { ep.onAbort = cb; },
+    };
+  }
+  send(band, type, seq, fields) {
+    const vals = ChirpCore.encodeFrame(type, seq, fields);
+    const tones = ChirpCore.valuesToTones(vals);
+    const t0 = this.clock();
+    const airtime = (PRE_SYMS + tones.length) * T_SYM;
+    const t1 = t0 + airtime;
+    this.lastActive[band] = t1;
+    this.flights.push({ band, type, seq, fields, vals, t0, t1, progressStep: 0, syncDone: false });
+    if (this.synths[band]) this.synths[band].play(band, vals);
+    return { t0, t1, tones, airtime };
+  }
+  update() {
+    const now = this.clock();
+    for (let i = this.flights.length - 1; i >= 0; i--) {
+      const f = this.flights[i];
+      if (!f.syncDone && now >= f.t0 + PRE_SYMS * T_SYM * 0.5) {
+        f.syncDone = true;
+        for (const ep of this.eps) if (ep.onSync) ep.onSync(f.band, now);
+      }
+      const doneSymbols = Math.floor((now - f.t0 - PRE_SYMS * T_SYM) / T_SYM);
+      if (doneSymbols > f.progressStep && doneSymbols <= f.vals.length) {
+        f.progressStep = doneSymbols;
+        const partial = f.vals.slice(0, doneSymbols);
+        for (const ep of this.eps) if (ep.onProgress) ep.onProgress(f.band, partial, f.vals.length);
+      }
+      if (now >= f.t1) {
+        this.flights.splice(i, 1);
+        const frame = { type: f.type, name: ChirpCore.TYPE_NAMES[f.type], seq: f.seq, fields: f.fields, band: f.band, time: now };
+        for (const ep of this.eps) if (ep.onFrame) ep.onFrame(frame);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Link layer: reliable messaging with ACK and stop-and-wait retries.
+// ---------------------------------------------------------------------------
+class Link {
+  constructor(transport, side, clock) {
+    this.t = transport;
+    this.side = side;                 // 0 = player 1 (sings low), 1 = player 2 (sings high)
+    this.peer = 1 - side;
+    this.clock = clock;
+    this.txSeq = 0;
+    this.rxSeq = -1;
+    this.outbox = [];                 // [{ type, seq, fields, sentAt, retries, resolve }]
+    this.onAppFrame = null;
+    this.stats = { sent: 0, retries: 0, received: 0, acks: 0, drops: 0 };
+  }
+
+  send(type, fields = {}) {
+    if (!RELIABLE.has(type)) {
+      this.t.send(this.side, type, 0, fields);
+      this.stats.sent++;
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      const seq = this.txSeq;
+      this.txSeq ^= 1;
+      this.outbox.push({ type, seq, fields, sentAt: 0, retries: 0, resolve });
+      this.pump();
+    });
+  }
+
+  pump() {
+    if (!this.outbox.length) return;
+    const m = this.outbox[0];
+    const now = this.clock();
+    if (m.sentAt === 0) {
+      if (this.t.busy(this.side)) return;
+      this.t.send(this.side, m.type, m.seq, m.fields);
+      m.sentAt = now;
+      this.stats.sent++;
+      return;
+    }
+    const timeout = ChirpCore.airtime(m.type) + ChirpCore.airtime(TYPES.ACK) + 0.35 + m.retries * 0.15;
+    if (now - m.sentAt > timeout) {
+      if (this.t.busy(this.side)) return;
+      m.retries++;
+      this.stats.retries++;
+      this.t.send(this.side, m.type, m.seq, m.fields);
+      m.sentAt = now;
+    }
+  }
+
+  update() { this.pump(); }
+
+  handleFrame(f) {
+    if (f.band !== this.peer) return;
+    if (f.type === TYPES.ACK) {
+      const ackSeq = f.fields.of;
+      if (this.outbox.length && this.outbox[0].seq === ackSeq) {
+        const done = this.outbox.shift();
+        this.stats.acks++;
+        done.resolve(f);
+        this.pump();
+      }
+      return;
+    }
+    if (RELIABLE.has(f.type)) {
+      this.t.send(this.side, TYPES.ACK, 0, { of: f.seq });
+      if (f.seq === this.rxSeq) {
+        this.stats.drops++;           // duplicate delivery, ACK again and ignore
+        return;
+      }
+      this.rxSeq = f.seq;
+    }
+    this.stats.received++;
+    if (this.onAppFrame) this.onAppFrame(f);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pairing lobby: Phone 1 calls until Phone 2 answers.
+// ---------------------------------------------------------------------------
+class Lobby {
+  constructor(transport, clock) {
+    this.t = transport;
+    this.clock = clock;
+    this.mode = 'listen';
+    this.role = -1;
+    this.nonce = 0;
+    this.peerNonce = -1;
+    this.target = 11;
+    this.calls = 0;
+    this.nextCall = 0;
+    this.pending = null;
+    this.blockedSince = 0;
+    this.onPaired = null;
+  }
+  call(target) {
+    this.mode = 'call';
+    this.target = target;
+    this.nonce = 1 + Math.floor(Math.random() * 254);
+    this.calls = 0;
+    this.nextCall = this.clock();
+  }
+  update() {
+    const now = this.clock();
+    const busy = this.t.busy(0) || this.t.busy(1);
+    if (!busy) this.blockedSince = 0;
+    else if (!this.blockedSince) this.blockedSince = now;
+    const clear = !busy || now - this.blockedSince > 0.8;
+    if (this.pending && now >= this.pending.at && clear) {
+      this.t.send(1, TYPES.WELCOME, 0, this.pending.fields);
+      this.pending = null;
+    }
+    if (this.mode === 'call' && now >= this.nextCall && clear) {
+      const r = this.t.send(0, TYPES.HELLO, 0, { nonce: this.nonce, target: this.target });
+      this.calls++;
+      this.nextCall = now + r.airtime + 1.0 + Math.random() * 0.9;
+    }
+  }
+  handleFrame(f) {
+    if (f.type === TYPES.HELLO && f.band === 0) {
+      const n = f.fields.nonce;
+      if (this.mode === 'call' && n <= this.nonce) return;
+      if (this.mode === 'paired' && this.role === 1 && n === this.peerNonce) {
+        // They missed our answer: answer again.
+        this.pending = { at: this.clock() + 0.15, fields: { nonce: n, target: f.fields.target } };
+        return;
+      }
+      // Otherwise this is a new call, perhaps from a phone that reloaded mid-game.
+      this.mode = 'paired';
+      this.role = 1;
+      this.peerNonce = n;
+      this.pending = { at: this.clock() + 0.15, fields: { nonce: n, target: f.fields.target } };
+      if (this.onPaired) this.onPaired(1, f.fields.target || 11);
+    } else if (f.type === TYPES.WELCOME && f.band === 1 && this.mode === 'call' && f.fields.nonce === this.nonce) {
+      this.mode = 'paired';
+      this.role = 0;
+      if (this.onPaired) this.onPaired(0, this.target);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sound effects. Everything goes through a steep low-pass so effects never
+// land in the 1.4–5 kHz bands the modem uses.
+// ---------------------------------------------------------------------------
+class Sfx {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.enabled = true;
+    this.lp = ctx.createBiquadFilter();
+    this.lp.type = 'lowpass';
+    this.lp.frequency.value = 900;
+    this.lp.connect(ctx.destination);
+  }
+
+  beep(freq, dur, type = 'sine', gain = 0.25) {
+    if (!this.enabled) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g);
+    g.connect(this.lp);
+    osc.start(t);
+    osc.stop(t + dur);
+  }
+
+  hit(smash = false) {
+    if (smash) {
+      this.beep(520, 0.18, 'triangle', 0.45);
+      setTimeout(() => this.beep(780, 0.15, 'sine', 0.3), 30);
+    } else {
+      this.beep(360, 0.08, 'triangle', 0.3);
+    }
+  }
+
+  wall() { this.beep(220, 0.05, 'sine', 0.18); }
+  gem() {
+    this.beep(440, 0.07, 'sine', 0.25);
+    setTimeout(() => this.beep(660, 0.12, 'sine', 0.25), 60);
+  }
+  portal() {
+    if (!this.enabled) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(680, t + 0.14);
+    g.gain.setValueAtTime(0.22, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    osc.connect(g);
+    g.connect(this.lp);
+    osc.start(t);
+    osc.stop(t + 0.16);
+  }
+  score(win) {
+    const base = win ? 440 : 220;
+    this.beep(base, 0.15, 'sine', 0.3);
+    setTimeout(() => this.beep(base * (win ? 1.25 : 0.8), 0.25, 'triangle', 0.3), 120);
+  }
+  bomb() { this.beep(120, 0.35, 'sawtooth', 0.4); }
+}
+
+// ---------------------------------------------------------------------------
+// Game simulation: physics, particles, tricks, rendering and controls
+// ---------------------------------------------------------------------------
+class Game {
+  constructor(opts) {
+    this.side = opts.side;            // 0 = P1 (blue, serves first), 1 = P2 (pink)
+    this.peer = 1 - this.side;
+    this.link = opts.link;
+    this.controller = opts.controller;
+    this.sfx = opts.sfx || NULL_SFX;
+    this.canvas = opts.canvas;
+    this.target = opts.target || 11;
+    this.haptics = opts.haptics !== false;
+    this.labels = opts.labels || ['P1', 'P2'];
+    this.colors = PLAYER_COLORS;
+
+    this.height = 160;                // court aspect ratio height (width is 100)
+    this.score = [0, 0];
+    this.serving = opts.serving ?? (this.side === 0);
+    this.state = 'serve';             // 'serve', 'play', 'away', 'point', 'over'
+    this.rally = 0;
+    this.ball = null;                 // { x, y, vx, vy, spin, smash, trick, heat }
+    this.paddle = { x: 50, y: 142, w: PADDLE_W, h: PADDLE_H, stunnedUntil: 0, shrinkUntil: 0, mirrorUntil: 0 };
+    this.incoming = null;             // ball emerging from the portal
+    this.gem = null;                  // current trick gem on court
+    this.bombs = [];                  // bombs falling on court
+    this.vortices = [];               // black holes bending the ball
+    this.bombCharge = 0;
+    this.canBomb = false;
+    this.mirages = [];
+    this.particles = [];
+    this.ripples = [];
+    this.shake = 0;
+    this.banner = null;               // large text toast: { text, color, t0, dur }
+    this.paused = false;
+    this.winner = -1;
+    this.totals = { rallies: 0, smashes: 0, tricks: 0, bombs: 0, crossings: 0 };
+    this.portalPulse = 0;
+    this.time = 0;
+
+    // Responsive projection set by layout()
+    this.view = { ox: 0, oy: 0, scale: 1, dpr: 1, safeTop: 0, safeBottom: 0 };
+
+    this.link.onAppFrame = (f) => this.handleFrame(f);
+  }
+
+  setHeight(h) {
+    this.height = clamp(h, 140, 210);
+    this.paddle.y = this.height - 18;
+  }
+
+  vibrate(pattern) {
+    if (this.haptics && navigator.vibrate) try { navigator.vibrate(pattern); } catch (e) {}
+  }
+
+  toast(text, color = '#fff', dur = 1.2) {
+    this.banner = { text, color, t: 0, dur };
+  }
+
+  spawnGem() {
+    if (this.gem || Math.random() > 0.45) return;
+    const kind = Math.floor(Math.random() * TRICKS.length);
+    const x = rand(20, COURT_W - 20);
+    const y = rand(35, this.height - 50);
+    this.gem = { x, y, kind, birth: this.time };
+  }
+
+  serve() {
+    this.rally = 0;
+    this.ball = {
+      x: this.paddle.x,
+      y: this.paddle.y - PADDLE_H / 2 - BALL_R - 1,
+      vx: 0,
+      vy: 0,
+      spin: 0,
+      smash: false,
+      trick: -1,
+      heat: 1,
+      trail: [],
+    };
+    this.state = 'serve';
+  }
+
+  launch() {
+    if (!this.ball || this.state !== 'serve') return;
+    const spd = baseSpeed(0);
+    const angle = rand(-0.4, 0.4);
+    this.ball.vx = spd * Math.sin(angle);
+    this.ball.vy = -spd * Math.cos(angle);
+    this.state = 'play';
+    this.sfx.hit(false);
+    this.vibrate(15);
+  }
+
+  update(dt) {
+    this.time += dt;
+    if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 2.5);
+    this.portalPulse = Math.max(0, this.portalPulse - dt * 1.8);
+    if (this.banner) {
+      this.banner.t += dt;
+      if (this.banner.t >= this.banner.dur) this.banner = null;
+    }
+    this.updateParticles(dt);
+    this.updateVortices(dt);
+    this.updateBombs(dt);
+
+    if (this.state === 'over') return;
+
+    this.updatePaddle(dt);
+
+    if (this.state === 'serve') {
+      if (this.serving) {
+        this.ball.x = this.paddle.x;
+        this.ball.y = this.paddle.y - PADDLE_H / 2 - BALL_R - 1;
+      }
+      return;
+    }
+
+    if (this.incoming) this.updateIncoming(dt);
+
+    if (this.state === 'play' && this.ball) {
+      this.updateBall(dt);
+    }
+  }
+
+  updatePaddle(dt) {
+    const c = this.controller.get(this);
+    if (c.action === 'serve' && this.state === 'serve' && this.serving) {
+      this.launch();
+      return;
+    }
+    if (c.action === 'bomb' && this.state === 'away' && this.bombCharge >= 1) {
+      this.dropBomb(c.tapX);
+    }
+    const p = this.paddle;
+    const stunned = this.time < p.stunnedUntil;
+    if (!stunned && typeof c.x === 'number') {
+      const mirror = this.time < p.mirrorUntil;
+      const targetX = mirror ? (COURT_W - c.x) : c.x;
+      p.x = clamp(targetX, p.w / 2, COURT_W - p.w / 2);
+    }
+    p.w = this.time < p.shrinkUntil ? PADDLE_W * 0.55 : PADDLE_W;
+  }
+
+  updateBall(dt) {
+    const b = this.ball;
+    const p = this.paddle;
+
+    // Magnus effect: spin bends horizontal velocity
+    b.vx += b.spin * dt * 420;
+    b.spin *= Math.max(0, 1 - dt * 0.35);
+
+    // Vortices bend the ball
+    for (const v of this.vortices) {
+      const dx = v.x - b.x, dy = v.y - b.y;
+      const d2 = dx * dx + dy * dy + 30;
+      const pull = (v.strength * 4500) / d2;
+      b.vx += (dx / Math.sqrt(d2)) * pull * dt;
+      b.vy += (dy / Math.sqrt(d2)) * pull * dt;
+    }
+
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+
+    b.trail.push({ x: b.x, y: b.y, t: this.time });
+    while (b.trail.length && this.time - b.trail[0].t > 0.22) b.trail.shift();
+
+    // Side wall bounces
+    if (b.x - BALL_R <= 0) {
+      b.x = BALL_R;
+      b.vx = Math.abs(b.vx);
+      this.sfx.wall();
+      this.burst(b.x, b.y, '#fff', 4);
+    } else if (b.x + BALL_R >= COURT_W) {
+      b.x = COURT_W - BALL_R;
+      b.vx = -Math.abs(b.vx);
+      this.sfx.wall();
+      this.burst(b.x, b.y, '#fff', 4);
+    }
+
+    // Gem pickup
+    if (this.gem) {
+      const dx = b.x - this.gem.x, dy = b.y - this.gem.y;
+      if (Math.hypot(dx, dy) < BALL_R + GEM_R) {
+        b.trick = this.gem.kind;
+        this.sfx.gem();
+        this.vibrate(20);
+        const trick = TRICKS[this.gem.kind];
+        this.toast(`${trick.icon} ${trick.name}!`, trick.color, 1.0);
+        this.burst(this.gem.x, this.gem.y, trick.color, 18);
+        this.gem = null;
+        this.totals.tricks++;
+      }
+    }
+
+    // Paddle collision
+    const topEdge = p.y - p.h / 2;
+    const botEdge = p.y + p.h / 2;
+    if (b.vy > 0 && b.y + BALL_R >= topEdge && b.y - BALL_R <= botEdge && b.x >= p.x - p.w / 2 - 2 && b.x <= p.x + p.w / 2 + 2) {
+      this.hitPaddle();
+      return;
+    }
+
+    // Out the bottom = miss
+    if (b.y - BALL_R > this.height) {
+      this.miss();
+      return;
+    }
+
+    // Into the portal at the top
+    if (b.vy < 0 && b.y <= PORTAL_IN) {
+      this.sendAcross();
+    }
+  }
+
+  hitPaddle() {
+    const b = this.ball;
+    const p = this.paddle;
+    const c = this.controller.get(this);
+    this.rally++;
+    b.heat = rallyValue(this.rally);
+
+    // Impact position on paddle (-1 to 1) shapes the bounce angle
+    const norm = clamp((b.x - p.x) / (p.w / 2), -1, 1);
+    const maxAng = 0.95;              // ~55 degrees
+    const ang = norm * maxAng;
+
+    // Swipe adds spin; flick adds smash
+    b.spin = clamp(norm * 0.4 + (c.flickVx || 0) * 0.008, -1, 1);
+    b.smash = (c.flickVy || 0) < FLICK_DY;
+    if (b.smash) this.totals.smashes++;
+
+    let spd = baseSpeed(this.rally);
+    if (b.smash) spd *= SMASH_MULT;
+
+    b.vx = spd * Math.sin(ang);
+    b.vy = -spd * Math.cos(ang);
+    b.y = p.y - p.h / 2 - BALL_R - 0.5;
+
+    // Charge the bomb meter
+    this.bombCharge = Math.min(1, this.bombCharge + 0.34);
+
+    this.sfx.hit(b.smash);
+    this.vibrate(b.smash ? [25, 30, 45] : 18);
+    this.shake = b.smash ? 0.35 : 0.08;
+    this.burst(b.x, b.y, b.smash ? '#ffe14d' : this.colors[this.side], b.smash ? 20 : 10);
+
+    // Maybe drop a gem on court
+    this.spawnGem();
+  }
+
+  sendAcross() {
+    const b = this.ball;
+    const ang = Math.atan2(b.vx, -b.vy);  // incoming angle from vertical
+    const spd = Math.hypot(b.vx, b.vy);
+    const speedIdx = speedLevel(spd);
+
+    // Quantise fields to frame layout
+    const fields = {
+      x: clamp(Math.round((b.x / COURT_W) * 63), 0, 63),
+      ang: clamp(Math.round(((ang + 1.2) / 2.4) * 31), 0, 31),
+      spd: clamp(speedIdx, 0, 7),
+      spin: clamp(Math.round(((b.spin + 1) / 2) * 7), 0, 7),
+      trick: b.trick < 0 ? 0 : b.trick + 1,
+      rally: Math.min(31, this.rally),
+      smash: b.smash ? 1 : 0,
+    };
+
+    this.sfx.portal();
+    this.portalPulse = 1;
+    this.burst(b.x, 0, this.colors[this.side], 16);
+    this.state = 'away';
+    this.ball = null;
+    this.totals.crossings++;
+
+    this.link.send(TYPES.BALL, fields);
+  }
+
+  // Called when we receive a BALL frame from the peer
+  receiveBall(fields) {
+    const p1 = fields.x / 63;
+    // Mirrored for the receiving phone's coordinate frame
+    const rx = (1 - p1) * COURT_W;
+    const angNom = (fields.ang / 31) * 2.4 - 1.2;
+    const ang = -angNom;
+    let spd = SPEEDS[fields.spd] || 130;
+    const spin = ((fields.spin / 7) * 2 - 1) * -1;
+    const trick = fields.trick - 1;
+    const rally = fields.rally;
+    const smash = fields.smash === 1;
+
+    this.rally = rally;
+
+    // Apply trick effects on this screen
+    if (trick >= 0) this.applyTrick(trick, rx);
+
+    if (trick === 0) spd *= 1.45;     // BLAZE
+
+    const vx = spd * Math.sin(ang);
+    const vy = spd * Math.cos(ang);
+
+    this.ball = {
+      x: rx,
+      y: PORTAL_OUT,
+      vx,
+      vy,
+      spin,
+      smash,
+      trick,
+      heat: rallyValue(rally),
+      trail: [],
+    };
+    this.state = 'play';
+    this.incoming = null;
+    this.sfx.portal();
+    this.portalPulse = 1;
+    this.burst(rx, 0, this.colors[this.peer], smash ? 22 : 14);
+  }
+
+  applyTrick(trick, x) {
+    const t = TRICKS[trick];
+    this.toast(`${t.icon} ${t.name}!`, t.color, 1.4);
+    switch (t.name) {
+      case 'SHRINK':
+        this.paddle.shrinkUntil = this.time + 6;
+        break;
+      case 'MIRROR':
+        this.paddle.mirrorUntil = this.time + 5;
+        break;
+      case 'VORTEX':
+        this.vortices.push({ x: rand(30, 70), y: rand(40, this.height - 60), strength: 1, expire: this.time + 7 });
+        break;
+      case 'MIRAGE':
+        this.mirages = [-18, 18].map((dx) => ({ dx, alpha: 1 }));
+        break;
+      case 'BOMB':
+        this.bombs.push({ x, y: 0, vy: 140 });
+        break;
+    }
+  }
+
+  incomingSync() {
+    this.incoming = { x: 50, phase: 'sync', t: this.time };
+  }
+  incomingProgress(vals, expect) {
+    const xq = ChirpCore.peekX(vals);
+    if (xq !== null) {
+      const rx = (1 - xq / 63) * COURT_W;
+      this.incoming = { x: rx, phase: 'peek', t: this.time };
+    }
+  }
+  incomingAbort() { this.incoming = null; }
+
+  updateIncoming(dt) {
+    if (this.state !== 'away' && this.state !== 'serve') return;
+    // Draw portal gather effect at this.incoming.x
+  }
+
+  dropBomb(courtX) {
+    this.bombCharge = 0;
+    const x = clamp(courtX || 50, 8, COURT_W - 8);
+    const peerX = Math.round(((COURT_W - x) / COURT_W) * 63);
+    this.link.send(TYPES.BOMB, { x: peerX });
+    this.sfx.bomb();
+    this.toast('💣 BOMB DROPPED!', '#ff4d4d', 0.9);
+    this.totals.bombs++;
+  }
+
+  receiveBomb(fields) {
+    const x = (1 - fields.x / 63) * COURT_W;
+    this.bombs.push({ x, y: 0, vy: 160 });
+    this.sfx.bomb();
+    this.toast('💣 INCOMING BOMB!', '#ff4d4d', 1.0);
+  }
+
+  updateBombs(dt) {
+    const p = this.paddle;
+    for (let i = this.bombs.length - 1; i >= 0; i--) {
+      const b = this.bombs[i];
+      b.y += b.vy * dt;
+      // Stun paddle on hit
+      if (b.y >= p.y - p.h / 2 && b.y <= p.y + p.h / 2 && Math.abs(b.x - p.x) <= p.w / 2 + 3) {
+        p.stunnedUntil = this.time + 1.2;
+        this.sfx.bomb();
+        this.vibrate([40, 40, 80]);
+        this.shake = 0.4;
+        this.burst(b.x, b.y, '#ff4d4d', 24);
+        this.bombs.splice(i, 1);
+        continue;
+      }
+      if (b.y > this.height + 10) this.bombs.splice(i, 1);
+    }
+  }
+
+  updateVortices(dt) {
+    for (let i = this.vortices.length - 1; i >= 0; i--) {
+      if (this.time >= this.vortices[i].expire) this.vortices.splice(i, 1);
+    }
+  }
+
+  miss() {
+    const heat = this.ball ? this.ball.heat : 1;
+    this.state = 'point';
+    this.ball = null;
+    this.score[this.peer] += heat;
+    this.serving = true;               // whoever missed serves next
+    this.sfx.score(false);
+    this.vibrate([60, 50, 100]);
+    this.shake = 0.5;
+
+    this.link.send(TYPES.MISS, { sa: this.score[0], sb: this.score[1] });
+    this.checkWinner();
+    if (this.state !== 'over') {
+      setTimeout(() => { if (this.state === 'point') this.serve(); }, 1400);
+    }
+  }
+
+  receiveMiss(fields) {
+    const heat = rallyValue(this.rally);
+    // Peer missed, so we score
+    this.score[this.side] = Math.max(this.score[this.side] + heat, fields['s' + (this.side === 0 ? 'a' : 'b')]);
+    this.serving = false;
+    this.ball = null;
+    this.state = 'point';
+    this.sfx.score(true);
+    this.vibrate([30, 40, 40]);
+    this.toast(`+${heat} POINT!`, this.colors[this.side], 1.2);
+    this.checkWinner();
+    if (this.state !== 'over') {
+      setTimeout(() => { if (this.state === 'point') this.state = 'away'; }, 1400);
+    }
+  }
+
+  checkWinner() {
+    const s0 = this.score[this.side], s1 = this.score[this.peer];
+    if ((s0 >= this.target || s1 >= this.target) && Math.abs(s0 - s1) >= 2) {
+      this.state = 'over';
+      this.winner = s0 > s1 ? this.side : this.peer;
+      if (this.onOver) this.onOver(this.winner, this.score);
+    }
+  }
+
+  handleFrame(f) {
+    switch (f.type) {
+      case TYPES.BALL:
+        this.receiveBall(f.fields);
+        break;
+      case TYPES.MISS:
+        this.receiveMiss(f.fields);
+        break;
+      case TYPES.BOMB:
+        this.receiveBomb(f.fields);
+        break;
+      case TYPES.REMATCH:
+        this.score = [0, 0];
+        this.serving = this.side === 0;
+        this.serve();
+        if (this.onRematch) this.onRematch();
+        break;
+    }
+  }
+
+  // -------------------------------------------------------- particles ---
+  burst(x, y, color, count = 10) {
+    for (let i = 0; i < count; i++) {
+      const a = rand(0, Math.PI * 2);
+      const s = rand(20, 110);
+      this.particles.push({
+        x, y,
+        vx: Math.cos(a) * s,
+        vy: Math.sin(a) * s,
+        color,
+        life: rand(0.3, 0.65),
+        age: 0,
+        r: rand(1.5, 3.2),
+      });
+    }
+  }
+
+  updateParticles(dt) {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.age += dt;
+      if (p.age >= p.life) { this.particles.splice(i, 1); continue; }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.94;
+      p.vy *= 0.94;
+    }
+  }
+
+  // -------------------------------------------------------- rendering ---
+  render() {
+    const c = this.canvas;
+    const g = c.getContext('2d');
+    const { ox, oy, scale, dpr } = this.view;
+
+    g.save();
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Screen shake
+    if (this.shake > 0) {
+      const s = this.shake * 7;
+      g.translate(rand(-s, s), rand(-s, s));
+    }
+
+    // Court viewport
+    g.translate(ox, oy);
+    g.scale(scale, scale);
+
+    this.drawCourt(g);
+    this.drawPortals(g);
+    this.drawGems(g);
+    this.drawVortices(g);
+    this.drawBombs(g);
+    this.drawPaddle(g);
+    this.drawIncoming(g);
+    if (this.ball) this.drawBall(g);
+    this.drawParticles(g);
+    this.drawHUD(g);
+    this.drawBanner(g);
+
+    g.restore();
+  }
+
+  drawCourt(g) {
+    // Backdrop
+    g.fillStyle = '#07051a';
+    g.fillRect(0, 0, COURT_W, this.height);
+
+    // Subtle perspective grid
+    g.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+    g.lineWidth = 0.5;
+    for (let x = 10; x < COURT_W; x += 10) {
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(x, this.height);
+      g.stroke();
+    }
+    for (let y = 15; y < this.height; y += 15) {
+      g.beginPath();
+      g.moveTo(0, y);
+      g.lineTo(COURT_W, y);
+      g.stroke();
+    }
+
+    // Side boundaries
+    g.lineWidth = 1.2;
+    g.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(0, this.height);
+    g.moveTo(COURT_W, 0);
+    g.lineTo(COURT_W, this.height);
+    g.stroke();
+  }
+
+  drawPortals(g) {
+    const col = this.colors[this.peer];
+    const pulse = this.portalPulse;
+
+    // Glowing energy slit at the top of the screen
+    const grad = g.createLinearGradient(0, 0, 0, 14 + pulse * 10);
+    grad.addColorStop(0, rgba(col, 0.7 + 0.3 * pulse));
+    grad.addColorStop(0.3, rgba(col, 0.25));
+    grad.addColorStop(1, 'transparent');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, COURT_W, 14 + pulse * 10);
+
+    g.strokeStyle = '#fff';
+    g.lineWidth = 1.6 + pulse * 2;
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(COURT_W, 0);
+    g.stroke();
+  }
+
+  drawPaddle(g) {
+    const p = this.paddle;
+    const col = this.colors[this.side];
+    const stunned = this.time < p.stunnedUntil;
+
+    g.save();
+    g.translate(p.x, p.y);
+
+    // Stun halo
+    if (stunned) {
+      g.strokeStyle = '#ffcf4d';
+      g.lineWidth = 1.2;
+      g.beginPath();
+      g.arc(0, 0, p.w / 2 + 4, 0, Math.PI * 2);
+      g.stroke();
+    }
+
+    // Paddle body
+    const rad = p.h / 2;
+    g.fillStyle = stunned ? '#666' : col;
+    g.shadowColor = col;
+    g.shadowBlur = stunned ? 0 : 12;
+    g.beginPath();
+    g.roundRect(-p.w / 2, -p.h / 2, p.w, p.h, rad);
+    g.fill();
+    g.shadowBlur = 0;
+
+    // Center jewel
+    g.fillStyle = '#fff';
+    g.beginPath();
+    g.arc(0, 0, 1.4, 0, Math.PI * 2);
+    g.fill();
+
+    g.restore();
+  }
+
+  drawBall(g) {
+    const b = this.ball;
+    const heatCol = b.heat === 3 ? '#ff3d3d' : b.heat === 2 ? '#ffe14d' : '#ffffff';
+
+    // Trail
+    for (let i = 0; i < b.trail.length; i++) {
+      const pt = b.trail[i];
+      const frac = i / b.trail.length;
+      g.fillStyle = rgba(heatCol, frac * 0.45);
+      g.beginPath();
+      g.arc(pt.x, pt.y, BALL_R * (0.3 + 0.7 * frac), 0, Math.PI * 2);
+      g.fill();
+    }
+
+    // Mirage ghosts
+    for (const m of this.mirages) {
+      g.fillStyle = rgba('#7dffb0', 0.45);
+      g.beginPath();
+      g.arc(b.x + m.dx, b.y, BALL_R, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    // Main ball
+    g.save();
+    g.shadowColor = heatCol;
+    g.shadowBlur = b.smash ? 18 : 8;
+    g.fillStyle = '#fff';
+    g.beginPath();
+    g.arc(b.x, b.y, BALL_R * (b.smash ? 1.25 : 1), 0, Math.PI * 2);
+    g.fill();
+    g.shadowBlur = 0;
+
+    // Spin indicator dot
+    if (Math.abs(b.spin) > 0.1) {
+      const ang = this.time * b.spin * 30;
+      g.fillStyle = '#120c34';
+      g.beginPath();
+      g.arc(b.x + Math.cos(ang) * (BALL_R - 1.2), b.y + Math.sin(ang) * (BALL_R - 1.2), 0.9, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    g.restore();
+  }
+
+  drawIncoming(g) {
+    if (!this.incoming) return;
+    const { x, phase } = this.incoming;
+    const col = this.colors[this.peer];
+
+    // Pulsing gather target at the portal
+    g.save();
+    const rad = 6 + Math.sin(this.time * 24) * 2;
+    g.strokeStyle = col;
+    g.lineWidth = 1.4;
+    g.beginPath();
+    g.arc(x, PORTAL_OUT / 2, rad, 0, Math.PI * 2);
+    g.stroke();
+
+    if (phase === 'peek') {
+      g.fillStyle = '#fff';
+      g.beginPath();
+      g.arc(x, PORTAL_OUT / 2, 2.2, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.restore();
+  }
+
+  drawGems(g) {
+    if (!this.gem) return;
+    const { x, y, kind, birth } = this.gem;
+    const t = TRICKS[kind];
+    const pulse = 1 + Math.sin((this.time - birth) * 5) * 0.12;
+
+    g.save();
+    g.translate(x, y);
+    g.scale(pulse, pulse);
+
+    // Outer diamond
+    g.fillStyle = t.color;
+    g.shadowColor = t.color;
+    g.shadowBlur = 12;
+    g.beginPath();
+    g.moveTo(0, -GEM_R);
+    g.lineTo(GEM_R, 0);
+    g.lineTo(0, GEM_R);
+    g.lineTo(-GEM_R, 0);
+    g.closePath();
+    g.fill();
+    g.shadowBlur = 0;
+
+    // Inner bright diamond
+    g.fillStyle = '#fff';
+    g.beginPath();
+    g.moveTo(0, -GEM_R * 0.45);
+    g.lineTo(GEM_R * 0.45, 0);
+    g.lineTo(0, GEM_R * 0.45);
+    g.lineTo(-GEM_R * 0.45, 0);
+    g.closePath();
+    g.fill();
+
+    g.restore();
+  }
+
+  drawVortices(g) {
+    for (const v of this.vortices) {
+      g.save();
+      g.translate(v.x, v.y);
+      g.rotate(this.time * 4);
+      g.strokeStyle = '#9b6bff';
+      g.lineWidth = 1.4;
+      for (let r = 3; r <= 15; r += 4) {
+        g.beginPath();
+        g.arc(0, 0, r, 0, Math.PI * 1.5);
+        g.stroke();
+      }
+      g.restore();
+    }
+  }
+
+  drawBombs(g) {
+    for (const b of this.bombs) {
+      g.save();
+      g.translate(b.x, b.y);
+      g.fillStyle = '#ff4d4d';
+      g.beginPath();
+      g.arc(0, 0, 4, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = '#ffe14d';
+      g.lineWidth = 1.2;
+      g.beginPath();
+      g.moveTo(0, -4);
+      g.lineTo(2, -7);
+      g.stroke();
+      g.restore();
+    }
+  }
+
+  drawParticles(g) {
+    for (const p of this.particles) {
+      const alpha = 1 - p.age / p.life;
+      g.fillStyle = p.color;
+      g.globalAlpha = alpha;
+      g.beginPath();
+      g.arc(p.x, p.y, p.r * alpha, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+  }
+
+  drawHUD(g) {
+    g.save();
+    g.font = '700 13px Orbitron, monospace';
+
+    // Scores
+    g.fillStyle = this.colors[this.peer];
+    g.fillText(`${this.labels[this.peer]}  ${this.score[this.peer]}`, 8, 24);
+
+    g.fillStyle = this.colors[this.side];
+    g.textAlign = 'right';
+    g.fillText(`${this.score[this.side]}  ${this.labels[this.side]}`, COURT_W - 8, 24);
+    g.textAlign = 'left';
+
+    // Rally heat multiplier
+    if (this.rally >= 6) {
+      const mult = rallyValue(this.rally);
+      const col = mult === 3 ? '#ff3d3d' : '#ffe14d';
+      g.fillStyle = col;
+      g.textAlign = 'center';
+      g.fillText(`×${mult} HEAT (${this.rally})`, COURT_W / 2, 24);
+      g.textAlign = 'left';
+    }
+
+    // Bomb charge bar along the bottom edge
+    const barW = 34;
+    const barH = 2.4;
+    const bx = (COURT_W - barW) / 2;
+    const by = this.height - 4;
+    g.fillStyle = 'rgba(255, 255, 255, 0.12)';
+    g.fillRect(bx, by, barW, barH);
+    if (this.bombCharge > 0) {
+      g.fillStyle = this.bombCharge >= 1 ? '#ff4d4d' : '#26e3ff';
+      g.fillRect(bx, by, barW * this.bombCharge, barH);
+    }
+
+    g.restore();
+  }
+
+  drawBanner(g) {
+    if (!this.banner) return;
+    const { text, color, t, dur } = this.banner;
+    const alpha = clamp(Math.sin((t / dur) * Math.PI), 0, 1);
+    g.save();
+    g.globalAlpha = alpha;
+    g.font = '900 15px Orbitron, monospace';
+    g.textAlign = 'center';
+    g.fillStyle = color;
+    g.shadowColor = color;
+    g.shadowBlur = 12;
+    g.fillText(text, COURT_W / 2, this.height * 0.42);
+    g.restore();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Human touch/mouse paddle controller with swipe spin and flick detection
+// ---------------------------------------------------------------------------
+class HumanController {
+  constructor() {
+    this.x = 50;
+    this.action = null;
+    this.flickVx = 0;
+    this.flickVy = 0;
+    this.tapX = 50;
+    this.touchHistory = [];
+  }
+
+  onPointerDown(e, game) {
+    const pt = this.project(e, game);
+    this.x = pt.x;
+    this.touchHistory = [{ x: pt.x, y: pt.y, t: wallClock() }];
+    if (game.state === 'serve' && game.serving) this.action = 'serve';
+    if (game.state === 'away') {
+      this.action = 'bomb';
+      this.tapX = pt.x;
+    }
+  }
+
+  onPointerMove(e, game) {
+    const pt = this.project(e, game);
+    this.x = pt.x;
+    const now = wallClock();
+    this.touchHistory.push({ x: pt.x, y: pt.y, t: now });
+    while (this.touchHistory.length && now - this.touchHistory[0].t > 0.18) this.touchHistory.shift();
+  }
+
+  onPointerUp(e, game) {
+    // Measure velocity of recent stroke for spin & smash
+    if (this.touchHistory.length >= 2) {
+      const first = this.touchHistory[0];
+      const last = this.touchHistory[this.touchHistory.length - 1];
+      const dt = Math.max(0.02, last.t - first.t);
+      this.flickVx = (last.x - first.x) / dt;
+      this.flickVy = (last.y - first.y) / dt;
+    }
+  }
+
+  project(e, game) {
+    const rect = game.canvas.getBoundingClientRect();
+    const clientX = e.clientX ?? (e.touches && e.touches[0].clientX) ?? 0;
+    const clientY = e.clientY ?? (e.touches && e.touches[0].clientY) ?? 0;
+    const cssX = clientX - rect.left;
+    const cssY = clientY - rect.top;
+    const { ox, oy, scale } = game.view;
+    return { x: (cssX - ox) / scale, y: (cssY - oy) / scale };
+  }
+
+  get(game) {
+    const res = { x: this.x, action: this.action, flickVx: this.flickVx, flickVy: this.flickVy, tapX: this.tapX };
+    this.action = null;
+    this.flickVx = 0;
+    this.flickVy = 0;
+    return res;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// CPU AI paddle controller for practice mode
+// ---------------------------------------------------------------------------
+class CpuController {
+  constructor(skill = 0.75) {
+    this.skill = skill;               // 0 = terrible, 1 = unbeatable
+    this.targetX = 50;
+    this.curX = 50;
+    this.lastPredict = 0;
+  }
+
+  get(game) {
+    const b = game.ball;
+    const p = game.paddle;
+
+    if (game.state === 'serve' && game.serving) {
+      return { x: 50, action: 'serve' };
+    }
+
+    if (b && b.vy > 0) {
+      // Predict ball arrival at paddle line
+      const dt = (p.y - b.y) / b.vy;
+      let predX = b.x + b.vx * dt;
+      // Mirror side wall bounces
+      while (predX < 0 || predX > COURT_W) {
+        if (predX < 0) predX = -predX;
+        else predX = 2 * COURT_W - predX;
+      }
+      // Add skill-dependent error
+      const err = (1 - this.skill) * 16 * Math.sin(game.time * 6);
+      this.targetX = clamp(predX + err, p.w / 2, COURT_W - p.w / 2);
+    } else {
+      // Drift back to center
+      this.targetX = 50;
+    }
+
+    const maxSpeed = lerp(85, 230, this.skill);
+    const dx = this.targetX - this.curX;
+    this.curX += clamp(dx, -maxSpeed * 0.016, maxSpeed * 0.016);
+
+    return { x: this.curX, action: null };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main UI application: screen switching, settings, audio init and loop
+// ---------------------------------------------------------------------------
+class App {
+  constructor() {
+    this.canvas = $('#court');
+    this.mode = 'title';              // 'title', 'lobby', 'duel', 'practice', 'sim'
+    this.target = 11;
+    this.sfxOn = true;
+    this.chirpsOn = true;
+    this.ctx = null;
+    this.modem = null;
+    this.transport = null;
+    this.lobby = null;
+    this.human = null;
+    this.cpu = null;
+    this.mainGame = null;
+    this.games = [];
+    this.links = [];
+    this.paused = false;
+    this.sim = null;
+    this.last = performance.now();
+    this.clockT = 0;
+    this.wakeLock = null;
+
+    this.bindUI();
+    this.layout();
+    window.addEventListener('resize', () => this.layout());
+    window.addEventListener('orientationchange', () => setTimeout(() => this.layout(), 100));
+
+    // Keep screen awake during gameplay
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        if (this.mode === 'duel' || this.mode === 'practice') this.keepAwake();
+      }
+    });
+    requestAnimationFrame((t) => this.loop(t));
+    if (location.hash.startsWith('#sim')) this.startSim();
+    else if (location.hash === '#practice') $('#btn-practice').click();
+  }
+
+  clock() {
+    return this.mode === 'sim' || this.mode === 'practice' ? this.clockT : wallClock();
+  }
+
+  bindUI() {
+    $('#btn-duel').addEventListener('click', () => this.openLobby());
+    $('#btn-practice').addEventListener('click', () => this.startPractice());
+    $('#btn-howto').addEventListener('click', () => this.show('scr-howto'));
+    $('#btn-howto-back').addEventListener('click', () => this.show('scr-title'));
+    $('#btn-lobby-back').addEventListener('click', () => this.quit());
+    $('#btn-call').addEventListener('click', () => {
+      if (!this.lobby) return;
+      this.lobby.call(this.target);
+      $('#btn-call').disabled = true;
+    });
+    $('#btn-force-p1').addEventListener('click', () => {
+      if (!this.lobby) return;
+      this.startDuel(0, this.target);
+    });
+    $('#btn-force-p2').addEventListener('click', () => {
+      if (!this.lobby) return;
+      this.startDuel(1, this.target);
+    });
+    const segFreq = $('#seg-freq');
+    if (segFreq) {
+      segFreq.querySelectorAll('button').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          segFreq.querySelectorAll('button').forEach((b) => b.classList.remove('on'));
+          btn.classList.add('on');
+          this.setFrequencyProfile(btn.dataset.f);
         });
-      }
+      });
     }
-
-    function buildBallCrossFrame() {
-      const seq = (modem.seqCounter++) & 0xff;
-      const normX = Math.max(0, Math.min(255, Math.round((1 - state.ball.x / state.width) * 255)));
-      const vxQuant = Math.max(0, Math.min(255, Math.round((-state.ball.vx + 12) * 10)));
-      const spinQuant = Math.max(0, Math.min(15, Math.round((state.ball.spin + 0.25) * 30)));
-      const smashBit = state.ball.smash ? 0x80 : 0x00;
-      const gemNib = state.loadedGem & 0x07;
-      const rallyClamped = Math.min(31, state.rallyHits) & 0x1f;
-      return new Uint8Array([
-        PKT_TYPES.BALL_CROSS,
-        seq,
-        normX,
-        vxQuant,
-        smashBit | spinQuant,
-        (gemNib << 5) | rallyClamped
-      ]);
-    }
-
-    function serveBall(towardPlayer = true) {
-      state.ballInYourCourt = true;
-      state.ball.x = state.width / 2;
-      state.ball.y = towardPlayer ? 95 : state.height - 95;
-      const baseSpeed = 5.2;
-      state.ball.vx = (Math.random() - 0.5) * 4.2;
-      state.ball.vy = towardPlayer ? baseSpeed : -baseSpeed;
-      state.ball.spin = 0;
-      state.ball.smash = false;
-      state.ball.trail = [];
-      state.mirageBalls = [];
-      state.vortex = null;
-      if (!state.courtGem) spawnCourtGem();
-      updateHud();
-    }
-
-    function triggerIncomingBallFromPortal(incomingGem = 0, smash = false, spin = 0, normX = 0.5) {
-      state.ballInYourCourt = true;
-      state.ball.x = Math.max(24, Math.min(state.width - 24, normX * state.width));
-      state.ball.y = 14;
-      let speed = 5.4 + Math.min(3.2, state.rallyHits * 0.18);
-      if (smash) speed *= 1.28;
-      if (incomingGem === 1) speed *= 1.45;
-
-      state.ball.vx = (Math.random() - 0.5) * 4.8;
-      state.ball.vy = speed;
-      state.ball.spin = spin;
-      state.ball.smash = smash || incomingGem === 1;
-      state.ball.trail = [];
-
-      state.activeEffectOnYou = incomingGem;
-      state.activeEffectTimer = incomingGem ? 320 : 0;
-      state.mirageBalls = [];
-      state.vortex = null;
-
-      if (incomingGem > 0) {
-        const g = GEM_TYPES[incomingGem];
-        showToast(g.icon + ' INCOMING ' + g.name + ' TRICK!');
-      }
-
-      if (incomingGem === 3) {
-        for (let i = 0; i < 2; i++) {
-          state.mirageBalls.push({
-            x: state.ball.x + (i === 0 ? -35 : 35),
-            y: state.ball.y,
-            vx: -state.ball.vx * (0.7 + i * 0.4),
-            vy: state.ball.vy * (0.95 + i * 0.06)
-          });
-        }
-      } else if (incomingGem === 4) {
-        state.fallingBomb = {
-          x: Math.max(30, Math.min(state.width - 30, state.paddle.x + (Math.random() - 0.5) * 80)),
-          y: 20,
-          vy: 4.3,
-          r: 13
-        };
-      } else if (incomingGem === 5) {
-        state.vortex = {
-          x: state.width * (0.3 + Math.random() * 0.4),
-          y: state.height * 0.45,
-          r: 28,
-          angle: 0
-        };
-      }
-
-      spawnParticles(state.ball.x, 10, '#22d3ee', 18);
-      updateHud();
-    }
-
-    function sendBallThroughPortal() {
-      state.ballInYourCourt = false;
-      const outGem = state.loadedGem;
-      const outSmash = state.ball.smash;
-      const outSpin = state.ball.spin;
-      const outNormX = 1 - (state.ball.x / state.width);
-      state.loadedGem = 0;
-      spawnParticles(state.ball.x, 8, '#e879f9', 22);
-
-      const frame = buildBallCrossFrame();
-      if (state.mode === 'duel' || state.mode === 'sim' || modem.practiceChirps) {
-        modem.transmitFrame(frame, true, () => {
-          modem.acknowledgeSeq(frame[1]);
-        });
-        showToast('🦇 CHIRP TX (' + (modem.getTxBandBase() / 1000).toFixed(2) + ' kHz)');
-      }
-
-      const statusEl = document.getElementById('hudStatusText');
-      if (statusEl) {
-        statusEl.textContent = 'Ball on other screen • Tap court to drop Bomb';
-      }
-
-      const returnDelay = state.mode === 'sim' ? 650 : 1150;
-      clearTimeout(state.waitingForReturnTimer);
-      state.waitingForReturnTimer = setTimeout(() => {
-        if (state.mode === 'title' || state.mode === 'pair' || state.paused) return;
-
-        const missProb = (outSmash ? 0.22 : 0.08) + (outGem ? 0.14 : 0) + Math.min(0.15, state.rallyHits * 0.015);
-        if (Math.random() < missProb) {
-          const pts = state.heatMultiplier;
-          state.scoreYou += pts;
-          state.rallyHits = 0;
-          showToast('🎯 OPPONENT MISSED! +' + pts + ' PT');
-          updateHud();
-          if (checkMatchEnd()) return;
-          setTimeout(() => serveBall(true), 700);
-        } else {
-          state.rallyHits++;
-          const oppGem = Math.random() < 0.35 ? (1 + Math.floor(Math.random() * 7)) : 0;
-          const oppSmash = Math.random() < 0.2;
-          const oppSpin = (Math.random() - 0.5) * 0.14;
-          if (state.mode === 'duel' || state.mode === 'sim' || modem.practiceChirps) {
-            modem.transmitFrame(new Uint8Array([PKT_TYPES.ACK, frame[1]]), false);
-            modem.acknowledgeSeq(frame[1]);
-          }
-          if (statusEl) {
-            statusEl.textContent = 'Incoming Ball!';
-          }
-          triggerIncomingBallFromPortal(oppGem, oppSmash, oppSpin, Math.max(0.15, Math.min(0.85, outNormX + (Math.random() - 0.5) * 0.3)));
-        }
-      }, returnDelay);
-
-      updateHud();
-    }
-
-    function dropAimedBomb(targetX) {
-      if (state.bombCharge < 100) return;
-      state.bombCharge = 0;
-      updateHud();
-      const normX = Math.max(0, Math.min(255, Math.round((targetX / state.width) * 255)));
-      const seq = (modem.seqCounter++) & 0xff;
-      const pkt = new Uint8Array([PKT_TYPES.BOMB_DROP, seq, normX]);
-      modem.transmitFrame(pkt, false);
-      spawnParticles(targetX, 18, '#f43f5e', 20);
-      showToast('💣 AIMED BOMB CHIRPED!');
-    }
-
-    function checkMatchEnd() {
-      if (state.scoreYou >= state.targetPoints || state.scoreThem >= state.targetPoints) {
-        state.paused = true;
-        clearTimeout(state.waitingForReturnTimer);
-        const modal = document.getElementById('modalGameOver');
-        const heading = document.getElementById('gameOverHeading');
-        const score = document.getElementById('gameOverScore');
-        const won = state.scoreYou >= state.targetPoints;
-        heading.textContent = won ? 'YOU WIN' : (state.mode === 'practice' ? 'CPU WINS' : 'OPPONENT WINS');
-        heading.className = won ? 'text-3xl font-black text-cyan-400 mt-1' : 'text-3xl font-black text-rose-400 mt-1';
-        score.textContent = state.scoreYou + ' – ' + state.scoreThem;
-        modal.classList.remove('hidden');
-        return true;
-      }
-      return false;
-    }
-
-    function startMatch(mode) {
-      clearTimeout(state.waitingForReturnTimer);
-      state.mode = mode;
-      state.paused = false;
-      state.scoreYou = 0;
-      state.scoreThem = 0;
-      state.rallyHits = 0;
-      state.heatMultiplier = 1;
-      state.bombCharge = 0;
-      state.loadedGem = 0;
-      state.activeEffectOnYou = 0;
-      state.activeEffectTimer = 0;
-      state.paddleStunTimer = 0;
-      state.fallingBomb = null;
-      state.courtGem = null;
-
-      document.getElementById('screenTitle').classList.add('hidden');
-      document.getElementById('screenPair').classList.add('hidden');
-      document.getElementById('modalGameOver').classList.add('hidden');
-      document.getElementById('modalMenu').classList.add('hidden');
-      document.getElementById('inGameControls').classList.remove('hidden');
-
-      const statusEl = document.getElementById('hudStatusText');
-      if (mode === 'sim') {
-        statusEl.textContent = '#sim Mode: 2 CPUs via Modem';
-      } else if (mode === 'duel') {
-        statusEl.textContent = modem.role === 'A' ? 'Player 1 (Blue Half • Served)' : 'Player 2 (Red Half)';
-      } else {
-        statusEl.textContent = 'Practice vs CPU';
-      }
-
-      resizeCanvas();
-      spawnCourtGem();
-      serveBall(true);
-    }
-
-    function updateGame() {
-      if (state.mode === 'pair') {
-        drawPairingSpectrum();
-        return;
-      }
-      if (state.mode === 'title' || state.paused) {
-        drawCourt();
-        return;
-      }
-
-      const moveSpd = 7.5;
-      const mirrorSign = state.activeEffectOnYou === 6 ? -1 : 1;
-      if (state.keys.left) state.paddle.x -= moveSpd * mirrorSign;
-      if (state.keys.right) state.paddle.x += moveSpd * mirrorSign;
-
-      if (state.mode === 'sim' && state.ballInYourCourt) {
-        const targetX = state.ball.x + Math.sin( performance.now() * 0.005 ) * 18;
-        state.paddle.x += (targetX - state.paddle.x) * 0.18;
-        if (Math.abs(state.ball.y - state.paddle.y) < 35 && Math.random() < 0.08) {
-          state.paddle.lastSwipeVy = -12;
-        }
-      }
-
-      const effectivePaddleW = state.activeEffectOnYou === 7 ? state.paddle.w * 0.52 : state.paddle.w;
-      state.paddle.x = Math.max(effectivePaddleW / 2, Math.min(state.width - effectivePaddleW / 2, state.paddle.x));
-      state.paddle.vx = state.paddle.x - state.paddle.prevX;
-      state.paddle.prevX = state.paddle.x;
-
-      if (state.activeEffectTimer > 0) {
-        state.activeEffectTimer--;
-        if (state.activeEffectTimer === 0) state.activeEffectOnYou = 0;
-      }
-      if (state.paddleStunTimer > 0) state.paddleStunTimer--;
-
-      if (state.fallingBomb) {
-        state.fallingBomb.y += state.fallingBomb.vy;
-        if (
-          Math.abs(state.fallingBomb.y - state.paddle.y) < state.fallingBomb.r + state.paddle.h / 2 &&
-          Math.abs(state.fallingBomb.x - state.paddle.x) < effectivePaddleW / 2 + state.fallingBomb.r
-        ) {
-          state.paddleStunTimer = 95;
-          spawnParticles(state.paddle.x, state.paddle.y, '#f43f5e', 24);
-          showToast('⚡ PADDLE STUNNED BY BOMB!');
-          state.fallingBomb = null;
-        } else if (state.fallingBomb.y > state.height + 20) {
-          state.fallingBomb = null;
-        }
-      }
-
-      for (let i = state.particles.length - 1; i >= 0; i--) {
-        const pt = state.particles[i];
-        pt.x += pt.vx;
-        pt.y += pt.vy;
-        pt.life -= 0.035;
-        if (pt.life <= 0) state.particles.splice(i, 1);
-      }
-
-      if (!state.ballInYourCourt) {
-        drawCourt();
-        return;
-      }
-
-      const b = state.ball;
-      b.trail.push({ x: b.x, y: b.y });
-      if (b.trail.length > 14) b.trail.shift();
-
-      b.vx += b.spin;
-      if (state.vortex) {
-        state.vortex.angle += 0.12;
-        const dx = state.vortex.x - b.x;
-        const dy = state.vortex.y - b.y;
-        const distSq = Math.max(400, dx * dx + dy * dy);
-        b.vx += (dx / Math.sqrt(distSq)) * 0.22;
-      }
-
-      b.x += b.vx;
-      b.y += b.vy;
-
-      for (let i = 0; i < state.mirageBalls.length; i++) {
-        const mb = state.mirageBalls[i];
-        mb.x += mb.vx;
-        mb.y += mb.vy;
-        if (mb.x < b.r || mb.x > state.width - b.r) mb.vx *= -1;
-      }
-
-      if (b.x < b.r) {
-        b.x = b.r;
-        b.vx = Math.abs(b.vx);
-        modem.playGameSfx(360, 0.03);
-      } else if (b.x > state.width - b.r) {
-        b.x = state.width - b.r;
-        b.vx = -Math.abs(b.vx);
-        modem.playGameSfx(360, 0.03);
-      }
-
-      if (state.courtGem) {
-        state.courtGem.pulse += 0.08;
-        const dx = b.x - state.courtGem.x;
-        const dy = b.y - state.courtGem.y;
-        if (dx * dx + dy * dy <= (b.r + state.courtGem.r) * (b.r + state.courtGem.r)) {
-          state.loadedGem = state.courtGem.id;
-          const g = GEM_TYPES[state.loadedGem];
-          spawnParticles(state.courtGem.x, state.courtGem.y, g.color, 18);
-          showToast(g.icon + ' LOADED ' + g.name + '!');
-          state.courtGem = null;
-          updateHud();
-        }
-      }
-
-      if (
-        b.vy > 0 &&
-        b.y + b.r >= state.paddle.y - state.paddle.h / 2 &&
-        b.y - b.r <= state.paddle.y + state.paddle.h / 2 + 8 &&
-        Math.abs(b.x - state.paddle.x) <= effectivePaddleW / 2 + b.r
-      ) {
-        const hitOffset = (b.x - state.paddle.x) / (effectivePaddleW / 2);
-        const speed = Math.min(11.5, Math.hypot(b.vx, b.vy) * 1.04);
-        b.vy = -Math.max(4.8, speed * 0.92);
-        b.vx = hitOffset * 5.2 + state.paddle.vx * 0.25;
-        b.spin = Math.max(-0.18, Math.min(0.18, state.paddle.vx * 0.015));
-
-        if (state.paddle.lastSwipeVy < -7) {
-          b.smash = true;
-          b.vy *= 1.28;
-          showToast('💥 SMASH SHOT!');
-          state.paddle.lastSwipeVy = 0;
-        } else {
-          b.smash = false;
-        }
-
-        state.rallyHits++;
-        state.bombCharge = Math.min(100, state.bombCharge + 25);
-        spawnParticles(b.x, state.paddle.y - 6, '#22d3ee', 15);
-        modem.playGameSfx(620, 0.04);
-        if (!state.courtGem && Math.random() < 0.65) spawnCourtGem();
-        updateHud();
-      }
-
-      if (b.vy < 0 && b.y <= 8) {
-        sendBallThroughPortal();
-        return;
-      }
-
-      if (b.y - b.r > state.height) {
-        const pts = state.heatMultiplier;
-        state.scoreThem += pts;
-        state.rallyHits = 0;
-        state.activeEffectOnYou = 0;
-        spawnParticles(b.x, state.height - 10, '#f43f5e', 24);
-        showToast('❌ MISSED! OPPONENT +' + pts);
-        updateHud();
-        if (!checkMatchEnd()) {
-          setTimeout(() => serveBall(true), 650);
-        }
-      }
-
-      drawCourt();
-    }
-
-    function drawCourt() {
-      ctx2d.clearRect(0, 0, state.width, state.height);
-
-      ctx2d.strokeStyle = 'rgba(30, 41, 59, 0.45)';
-      ctx2d.lineWidth = 1;
-      for (let y = 60; y < state.height; y += 60) {
-        ctx2d.beginPath();
-        ctx2d.moveTo(0, y);
-        ctx2d.lineTo(state.width, y);
-        ctx2d.stroke();
-      }
-
-      const grad = ctx2d.createLinearGradient(0, 0, 0, 38);
-      grad.addColorStop(0, 'rgba(34, 211, 238, 0.28)');
-      grad.addColorStop(1, 'rgba(34, 211, 238, 0)');
-      ctx2d.fillStyle = grad;
-      ctx2d.fillRect(0, 0, state.width, 38);
-
-      if (state.vortex) {
-        ctx2d.save();
-        ctx2d.translate(state.vortex.x, state.vortex.y);
-        ctx2d.rotate(state.vortex.angle);
-        ctx2d.strokeStyle = '#c084fc';
-        ctx2d.lineWidth = 2.5;
-        for (let i = 0; i < 3; i++) {
-          ctx2d.beginPath();
-          ctx2d.arc(0, 0, 10 + i * 8, i, i + Math.PI * 1.3);
-          ctx2d.stroke();
-        }
-        ctx2d.restore();
-      }
-
-      if (state.courtGem) {
-        const g = GEM_TYPES[state.courtGem.id];
-        const r = state.courtGem.r + Math.sin(state.courtGem.pulse) * 2.5;
-        ctx2d.save();
-        ctx2d.beginPath();
-        ctx2d.arc(state.courtGem.x, state.courtGem.y, r, 0, Math.PI * 2);
-        ctx2d.fillStyle = g.color + '33';
-        ctx2d.fill();
-        ctx2d.lineWidth = 2;
-        ctx2d.strokeStyle = g.color;
-        ctx2d.stroke();
-        ctx2d.font = '16px sans-serif';
-        ctx2d.textAlign = 'center';
-        ctx2d.textBaseline = 'middle';
-        ctx2d.fillText(g.icon, state.courtGem.x, state.courtGem.y + 1);
-        ctx2d.restore();
-      }
-
-      if (state.fallingBomb) {
-        ctx2d.save();
-        ctx2d.beginPath();
-        ctx2d.arc(state.fallingBomb.x, state.fallingBomb.y, state.fallingBomb.r, 0, Math.PI * 2);
-        ctx2d.fillStyle = 'rgba(244, 63, 94, 0.25)';
-        ctx2d.fill();
-        ctx2d.font = '18px sans-serif';
-        ctx2d.textAlign = 'center';
-        ctx2d.textBaseline = 'middle';
-        ctx2d.fillText('💣', state.fallingBomb.x, state.fallingBomb.y);
-        ctx2d.restore();
-      }
-
-      if (state.ballInYourCourt) {
-        const b = state.ball;
-        const isPhantomHidden =
-          state.activeEffectOnYou === 2 &&
-          b.y > state.height * 0.26 &&
-          b.y < state.height * 0.64;
-
-        if (!isPhantomHidden) {
-          for (let i = 0; i < b.trail.length; i++) {
-            const tr = b.trail[i];
-            const alpha = ((i + 1) / b.trail.length) * 0.45;
-            ctx2d.beginPath();
-            ctx2d.arc(tr.x, tr.y, b.r * ((i + 1) / b.trail.length), 0, Math.PI * 2);
-            ctx2d.fillStyle = b.smash
-              ? `rgba(249, 115, 22, ${alpha})`
-              : `rgba(34, 211, 238, ${alpha})`;
-            ctx2d.fill();
-          }
-
-          for (let i = 0; i < state.mirageBalls.length; i++) {
-            const mb = state.mirageBalls[i];
-            ctx2d.beginPath();
-            ctx2d.arc(mb.x, mb.y, b.r, 0, Math.PI * 2);
-            ctx2d.fillStyle = 'rgba(34, 211, 238, 0.55)';
-            ctx2d.fill();
-          }
-
-          ctx2d.beginPath();
-          ctx2d.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-          ctx2d.fillStyle = b.smash ? '#fb923c' : '#f8fafc';
-          ctx2d.shadowColor = b.smash ? '#f97316' : '#22d3ee';
-          ctx2d.shadowBlur = 14;
-          ctx2d.fill();
-          ctx2d.shadowBlur = 0;
-        }
-      } else {
-        ctx2d.save();
-        ctx2d.fillStyle = 'rgba(148, 163, 184, 0.65)';
-        ctx2d.font = '600 12px Inter, sans-serif';
-        ctx2d.textAlign = 'center';
-        ctx2d.fillText('Ball in flight on opponent screen…', state.width / 2, state.height * 0.38);
-        if (state.bombCharge >= 100) {
-          ctx2d.fillStyle = '#fda4af';
-          ctx2d.fillText('Tap anywhere on court to drop a BOMB 💣', state.width / 2, state.height * 0.44);
-        }
-        ctx2d.restore();
-      }
-
-      const effectivePaddleW = state.activeEffectOnYou === 7 ? state.paddle.w * 0.52 : state.paddle.w;
-      ctx2d.save();
-      ctx2d.fillStyle = state.paddleStunTimer > 0
-        ? '#f43f5e'
-        : (state.activeEffectOnYou === 6 ? '#34d399' : '#22d3ee');
-      ctx2d.shadowColor = ctx2d.fillStyle;
-      ctx2d.shadowBlur = 12;
-      const px = state.paddle.x - effectivePaddleW / 2;
-      const py = state.paddle.y - state.paddle.h / 2;
-      ctx2d.beginPath();
-      ctx2d.roundRect(px, py, effectivePaddleW, state.paddle.h, 7);
-      ctx2d.fill();
-      ctx2d.restore();
-
-      for (let i = 0; i < state.particles.length; i++) {
-        const pt = state.particles[i];
-        ctx2d.fillStyle = pt.color;
-        ctx2d.globalAlpha = Math.max(0, pt.life);
-        ctx2d.fillRect(pt.x - 2, pt.y - 2, 4, 4);
-      }
-      ctx2d.globalAlpha = 1.0;
-    }
-
-    function drawPairingSpectrum() {
-      const w = spectrumCanvas.width;
-      const h = spectrumCanvas.height;
-      specCtx.clearRect(0, 0, w, h);
-
-      const sample = modem.sampleSpectrum();
-      const barCount = 48;
-      const barW = w / barCount;
-
-      for (let i = 0; i < barCount; i++) {
-        let amp = 8 + Math.sin(performance.now() * 0.006 + i * 0.35) * 4;
-        if (sample && sample.bins) {
-          const idx = sample.startBin + Math.floor((i / barCount) * Math.max(1, sample.endBin - sample.startBin));
-          amp = Math.max(amp, (sample.bins[idx] / 255) * (h - 10));
-        }
-        const barH = Math.min(h - 6, Math.max(4, amp));
-        specCtx.fillStyle = i < barCount / 2 ? '#22d3ee' : '#e879f9';
-        specCtx.fillRect(i * barW + 1, h - barH, barW - 2, barH);
-      }
-
-      const peakEl = document.getElementById('diagPeakFreq');
-      if (peakEl) peakEl.textContent = modem.lastPeakFreq + ' Hz';
-    }
-
-    let pointerDownY = null;
-
-    function handlePointerMove(clientX, clientY) {
-      if (state.paddleStunTimer > 0) return;
-      const rect = canvas.getBoundingClientRect();
-      const relX = clientX - rect.left;
-      const mirror = state.activeEffectOnYou === 6;
-      const targetX = mirror ? (state.width - relX) : relX;
-      state.paddle.x = targetX;
-      if (pointerDownY !== null) {
-        state.paddle.lastSwipeVy = clientY - pointerDownY;
-        pointerDownY = clientY;
-      }
-    }
-
-    canvas.addEventListener('pointerdown', (e) => {
-      modem.initAudio(false);
-      pointerDownY = e.clientY;
-      const rect = canvas.getBoundingClientRect();
-      const relX = e.clientX - rect.left;
-      if (!state.ballInYourCourt && state.bombCharge >= 100) {
-        dropAimedBomb(relX);
-      } else {
-        handlePointerMove(e.clientX, e.clientY);
-      }
+    $('#btn-selftest').addEventListener('click', () => this.selfTest());
+    $('#btn-menu').addEventListener('click', () => this.openPause());
+    $('#btn-resume').addEventListener('click', () => { this.paused = false; this.show(null); });
+    $('#btn-quit').addEventListener('click', () => this.quit());
+    $('#btn-sfx').addEventListener('click', () => {
+      this.sfxOn = !this.sfxOn;
+      if (this.sfx) this.sfx.enabled = this.sfxOn;
+      $('#btn-sfx').textContent = `Sound effects: ${this.sfxOn ? 'on' : 'off'}`;
     });
-
-    canvas.addEventListener('pointermove', (e) => {
-      if (e.buttons > 0 || e.pointerType === 'touch') {
-        handlePointerMove(e.clientX, e.clientY);
-      }
+    $('#btn-chirps').addEventListener('click', () => {
+      this.chirpsOn = !this.chirpsOn;
+      $('#btn-chirps').textContent = `Chirps in practice: ${this.chirpsOn ? 'on' : 'off'}`;
     });
+    $('#btn-rematch').addEventListener('click', () => this.rematch());
+    $('#btn-over-menu').addEventListener('click', () => this.quit());
 
-    canvas.addEventListener('pointerup', () => {
-      pointerDownY = null;
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft' || e.key === 'a') state.keys.left = true;
-      if (e.key === 'ArrowRight' || e.key === 'd') state.keys.right = true;
-      if (e.key === 'ArrowUp' || e.key === 'w') state.paddle.lastSwipeVy = -12;
-      if (e.key === ' ' && state.bombCharge >= 100 && !state.ballInYourCourt) {
-        dropAimedBomb(state.paddle.x);
-      }
-    });
-
-    window.addEventListener('keyup', (e) => {
-      if (e.key === 'ArrowLeft' || e.key === 'a') state.keys.left = false;
-      if (e.key === 'ArrowRight' || e.key === 'd') state.keys.right = false;
-    });
-
-    document.querySelectorAll('.btn-points').forEach((btn) => {
+    // Target score selector
+    const seg = $('#seg-target');
+    seg.querySelectorAll('button').forEach((btn) => {
       btn.addEventListener('click', () => {
-        state.targetPoints = parseInt(btn.getAttribute('data-points'), 10) || 7;
-        document.querySelectorAll('.btn-points').forEach((b) => {
-          b.className = 'btn-points px-3.5 py-1.5 rounded-lg text-xs font-extrabold mono bg-slate-800 text-slate-300 hover:bg-slate-700 transition';
-        });
-        btn.className = 'btn-points px-3.5 py-1.5 rounded-lg text-xs font-extrabold mono bg-cyan-500 text-slate-950 transition';
+        seg.querySelectorAll('button').forEach((b) => b.classList.remove('on'));
+        btn.classList.add('on');
+        this.target = parseInt(btn.dataset.v, 10);
       });
     });
 
-    document.getElementById('selectFreqBand').addEventListener('change', (e) => {
-      modem.presetKey = e.target.value;
-      updateBandUI();
-    });
-
-    document.getElementById('btnPlayTwoPhones').addEventListener('click', async () => {
-      state.mode = 'pair';
-      document.getElementById('screenTitle').classList.add('hidden');
-      document.getElementById('screenPair').classList.remove('hidden');
-      await modem.initAudio(true);
-    });
-
-    document.getElementById('btnPracticeCpu').addEventListener('click', async () => {
-      await modem.initAudio(false);
-      startMatch('practice');
-    });
-
-    document.getElementById('btnSimMode').addEventListener('click', async () => {
-      await modem.initAudio(false);
-      window.location.hash = 'sim';
-      startMatch('sim');
-    });
-
-    document.getElementById('btnHowToPlay').addEventListener('click', () => {
-      document.getElementById('modalHowToPlay').classList.remove('hidden');
-    });
-
-    document.getElementById('btnCloseHowToTop').addEventListener('click', () => {
-      document.getElementById('modalHowToPlay').classList.add('hidden');
-    });
-
-    document.getElementById('btnGotItHowTo').addEventListener('click', () => {
-      document.getElementById('modalHowToPlay').classList.add('hidden');
-    });
-
-    document.getElementById('btnCallOtherPhone').addEventListener('click', async () => {
-      await modem.initAudio(true);
-      const btn = document.getElementById('btnCallOtherPhone');
-      if (modem.beaconTimer) {
-        modem.stopBeacon();
-        btn.textContent = '📣 Auto-Pair: Tap Call on Phone 1 (Beaconing)';
-        showToast('⏹️ Calling stopped.');
-      } else {
-        modem.startBeacon();
-        btn.textContent = '📡 Beaconing Call... Tap again to Cancel';
-        showToast('📣 Calling Phone 2 continuously...');
-      }
-    });
-
-    document.getElementById('btnStartPlayer1').addEventListener('click', async () => {
-      modem.stopBeacon();
-      modem.role = 'A';
-      await modem.initAudio(true);
-      showToast('🔵 Player 1 Ready — Serving first!');
-      startMatch('duel');
-    });
-
-    document.getElementById('btnStartPlayer2').addEventListener('click', async () => {
-      modem.stopBeacon();
-      modem.role = 'B';
-      await modem.initAudio(true);
-      showToast('🔴 Player 2 Ready — Waiting for serve!');
-      startMatch('duel');
-      state.ballInYourCourt = false;
-      document.getElementById('hudStatusText').textContent = 'Waiting for Player 1 serve…';
-    });
-
-    document.getElementById('btnTestSpeakerMic').addEventListener('click', async () => {
-      const seq = (modem.seqCounter++) & 0xff;
-      const pkt = new Uint8Array([PKT_TYPES.HELLO_ACK, seq, 0x55]);
-      const info = await modem.transmitFrame(pkt, false);
-      const frameStatus = document.getElementById('diagFrameStatus');
-      if (frameStatus && info) {
-        frameStatus.textContent = 'Loopback OK (' + info.symbols.length + ' sym)';
-      }
-      showToast('🔊 Sent ' + (info ? info.baseFreq : 1406) + ' Hz Test Frame');
-    });
-
-    document.getElementById('btnPairBack').addEventListener('click', () => {
-      modem.stopBeacon();
-      state.mode = 'title';
-      document.getElementById('screenPair').classList.add('hidden');
-      document.getElementById('screenTitle').classList.remove('hidden');
-    });
-
-    document.getElementById('btnDropBomb').addEventListener('click', () => {
-      if (state.bombCharge >= 100) {
-        dropAimedBomb(state.paddle.x);
-      }
-    });
-
-    document.getElementById('btnMenuToggle').addEventListener('click', () => {
-      if (state.mode === 'title' || state.mode === 'pair') return;
-      state.paused = !state.paused;
-      document.getElementById('modalMenu').classList.toggle('hidden', !state.paused);
-    });
-
-    document.getElementById('btnMenuResume').addEventListener('click', () => {
-      state.paused = false;
-      document.getElementById('modalMenu').classList.add('hidden');
-    });
-
-    document.getElementById('btnToggleSfx').addEventListener('click', (e) => {
-      modem.sfxEnabled = !modem.sfxEnabled;
-      e.target.textContent = modem.sfxEnabled
-        ? 'Arcade SFX: ON'
-        : 'Arcade SFX: OFF (Pure Silent Mode)';
-    });
-
-    document.getElementById('btnTogglePracticeChirps').addEventListener('click', (e) => {
-      modem.practiceChirps = !modem.practiceChirps;
-      e.target.textContent = modem.practiceChirps
-        ? 'Chirps in Practice: ON'
-        : 'Chirps in Practice: OFF';
-    });
-
-    function quitToTitle() {
-      modem.stopBeacon();
-      clearTimeout(state.waitingForReturnTimer);
-      state.mode = 'title';
-      state.paused = false;
-      if (window.location.hash === '#sim') {
-        history.replaceState(null, '', window.location.pathname);
-      }
-      document.getElementById('modalMenu').classList.add('hidden');
-      document.getElementById('modalGameOver').classList.add('hidden');
-      document.getElementById('inGameControls').classList.add('hidden');
-      document.getElementById('screenPair').classList.add('hidden');
-      document.getElementById('screenTitle').classList.remove('hidden');
-      document.getElementById('hudStatusText').textContent = 'Standby • Modem Ready';
+    // Populate trick list in howto
+    const list = $('#trick-list');
+    if (list) {
+      list.innerHTML = TRICKS.map((t) => `
+        <div class="ic">${t.icon}</div>
+        <div><b style="color:${t.color}">${t.name}</b><br><span style="color:var(--dim);font-size:13px">${t.desc}</span></div>
+      `).join('');
     }
 
-    document.getElementById('btnMenuQuit').addEventListener('click', quitToTitle);
-    document.getElementById('btnGameOverQuit').addEventListener('click', quitToTitle);
-    document.getElementById('btnRematch').addEventListener('click', () => startMatch(state.mode));
-
-    window.onload = () => {
-      resizeCanvas();
-      updateBandUI();
-      updateHud();
-      if (window.location.hash === '#sim') {
-        startMatch('sim');
-      }
-      function loop() {
-        updateGame();
-        requestAnimationFrame(loop);
-      }
-      requestAnimationFrame(loop);
+    // Touch forwarding to active game's human controller
+    const down = (e) => {
+      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.human && this.mainGame) this.human.onPointerDown(e, this.mainGame);
     };
-  </script>
+    const move = (e) => { if (this.human && this.mainGame) this.human.onPointerMove(e, this.mainGame); };
+    const up = (e) => { if (this.human && this.mainGame) this.human.onPointerUp(e, this.mainGame); };
+
+    this.canvas.addEventListener('pointerdown', down);
+    this.canvas.addEventListener('pointermove', move);
+    this.canvas.addEventListener('pointerup', up);
+    this.canvas.addEventListener('pointercancel', up);
+  }
+
+  show(screenId) {
+    document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
+    if (screenId) {
+      const s = $('#' + screenId);
+      if (s) s.classList.add('active');
+    }
+    document.body.classList.toggle('playing', !screenId || screenId === 'scr-pause' || screenId === 'scr-over');
+  }
+
+  status(text, kind = '', hold = 0) {
+    const el = $('#lobby-status');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'status ' + kind;
+  }
+
+  ensureAudio() {
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AC({ latencyHint: 'interactive' });
+      this.sfx = new Sfx(this.ctx);
+      this.sfx.enabled = this.sfxOn;
+    }
+    this.ctx.resume();
+  }
+
+  layout() {
+    const s = getComputedStyle($('#safe-probe'));
+    this.safe = { top: parseFloat(s.paddingTop) || 0, bottom: parseFloat(s.paddingBottom) || 0 };
+    const cssW = window.innerWidth, cssH = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    this.canvas.width = Math.round(cssW * dpr);
+    this.canvas.height = Math.round(cssH * dpr);
+    const courtW = Math.min(cssW, cssH * 0.62);
+    const scale = courtW / 100;
+    for (const g of this.games) {
+      if (g.canvas !== this.canvas) continue;
+      g.view = { ox: (cssW - courtW) / 2, oy: 0, scale, dpr, safeTop: this.safe.top, safeBottom: this.safe.bottom };
+      g.setHeight(cssH / scale);
+    }
+    if (this.sim) this.layoutSim();
+  }
+
+  // Wire a transport's events to whichever lobby, link and game are current.
+  wire(t, ep) {
+    t.onFrame = (f) => {
+      if (f.type === TYPES.HELLO || f.type === TYPES.WELCOME) {
+        if (ep.lobby) ep.lobby.handleFrame(f);
+        return;
+      }
+      if (f.type === TYPES.TAUNT && ep.onTaunt) ep.onTaunt(f);
+      if (ep.link) ep.link.handleFrame(f);
+    };
+    t.onSync = (b) => {
+      ep.heard = wallClock();
+      if (ep.game && b === ep.game.peer) ep.game.incomingSync();
+    };
+    t.onProgress = (b, vals, expect) => { if (ep.game && b === ep.game.peer) ep.game.incomingProgress(vals, expect); };
+    t.onAbort = (b) => { if (ep.game && b === ep.game.peer) ep.game.incomingAbort(); };
+  }
+
+  // ------------------------------------------------------------- duel ---
+  async openLobby() {
+    this.show('scr-lobby');
+    $('#btn-call').disabled = false;
+    this.status('Starting microphone…');
+    try {
+      this.ensureAudio();
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('this browser has no microphone access (it needs HTTPS)');
+      if (!this.modem) {
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+          });
+        } catch (e1) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false } });
+          } catch (e2) {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          }
+        }
+        this.micStream = stream;
+        const src = this.ctx.createMediaStreamSource(this.micStream);
+        this.modem = new AudioModem(this.ctx, { input: src, output: this.ctx.destination, volume: 0.7 });
+        if (this.freqProfile) this.modem.setProfile(this.freqProfile);
+        await this.modem.start();
+        this.transport = new AudioTransport(this.modem);
+      }
+      await this.ctx.resume();
+    } catch (err) {
+      this.status(`Microphone unavailable: ${err.message}`, 'warn');
+      return;
+    }
+    this.ep = { transport: this.transport };
+    this.wire(this.transport, this.ep);
+    this.lobby = new Lobby(this.transport, wallClock);
+    this.ep.lobby = this.lobby;
+    this.lobby.onPaired = (side, target) => this.startDuel(side, target);
+    this.mode = 'lobby';
+    this.status('Listening for the other phone…');
+  }
+
+  setFrequencyProfile(profId) {
+    this.freqProfile = profId;
+    ChirpCore.setProfile(profId);
+    if (this.modem) this.modem.setProfile(profId);
+    const p = ChirpCore.FREQ_PROFILES[profId];
+    if (this.mode === 'lobby') {
+      this.status(`Modem: ${p.name}. Ready.`);
+    }
+  }
+
+  selfTest() {
+    if (!this.modem) return;
+    const d = this.modem.demod;
+    d.selfHear = true;
+    let timer = 0;
+    const done = (ok) => {
+      clearTimeout(timer);
+      d.selfHear = false;
+      this.ep.onTaunt = null;
+      if (ok) this.status('✅ This phone heard its own chirp. Audio works!', 'good', 5);
+      else this.status("⚠️ Didn't hear the test chirp. Turn the volume up. (Some phones filter out their own sound: if so, just try calling.)", 'warn', 6);
+    };
+    this.ep.onTaunt = (f) => { if (f.fields.emote === 15) done(true); };
+    timer = setTimeout(() => done(false), 2500);
+    this.transport.send(0, TYPES.TAUNT, 0, { emote: 15 });
+    this.status('Chirping…');
+  }
+
+  startDuel(side, target) {
+    const link = new Link(this.transport, side, wallClock);
+    this.human = new HumanController();
+    const g = new Game({
+      side, link, controller: this.human, sfx: this.sfx, canvas: this.canvas, target,
+      serving: side === 0, labels: ['YOU', 'THEM'], haptics: true,
+    });
+    this.ep.link = link;
+    this.ep.game = g;
+    this.beginPlay('duel', [g], [link], g);
+  }
+
+  // --------------------------------------------------------- practice ---
+  startPractice() {
+    this.ensureAudio();
+    this.clockT = 0;
+    const clock = () => this.clock();
+    const synths = [0, 1].map(() => {
+      const s = new ToneSynth(this.ctx, this.ctx.destination, 0.12);
+      s.enabled = this.chirpsOn;
+      return s;
+    });
+    this.air = new VirtualAir(clock, synths);
+    const tA = this.air.endpoint();
+    const tB = this.air.endpoint();
+    const linkA = new Link(tA, 0, clock);
+    const linkB = new Link(tB, 1, clock);
+
+    this.human = new HumanController();
+    this.cpu = new CpuController(0.72);
+
+    const gA = new Game({
+      side: 0, link: linkA, controller: this.human, sfx: this.sfx, canvas: this.canvas,
+      target: this.target, serving: true, labels: ['YOU', 'CPU'], haptics: true,
+    });
+    const gB = new Game({
+      side: 1, link: linkB, controller: this.cpu, sfx: NULL_SFX, canvas: this.canvas,
+      target: this.target, serving: false, labels: ['CPU', 'YOU'], haptics: false,
+    });
+
+    const epA = { link: linkA, game: gA };
+    const epB = { link: linkB, game: gB };
+    this.wire(tA, epA);
+    this.wire(tB, epB);
+
+    this.beginPlay('practice', [gA, gB], [linkA, linkB], gA);
+  }
+
+  beginPlay(mode, games, links, mainGame) {
+    this.mode = mode;
+    this.games = games;
+    this.links = links;
+    this.mainGame = mainGame;
+    this.paused = false;
+    this.layout();
+    this.show(null);
+    this.keepAwake();
+    mainGame.serve();
+    mainGame.onOver = (winner, score) => this.gameOver(winner, score);
+  }
+
+  gameOver(winner, score) {
+    const won = winner === this.mainGame.side;
+    $('#over-title').textContent = won ? 'YOU WIN!' : 'THEY WIN';
+    $('#over-title').style.color = won ? 'var(--p1)' : 'var(--p2)';
+    $('#over-score').textContent = `${score[this.mainGame.side]} – ${score[this.mainGame.peer]}`;
+    const t = this.mainGame.totals;
+    $('#over-stats').innerHTML = `
+      Crossings: <b>${t.crossings}</b> &nbsp;·&nbsp;
+      Smashes: <b>${t.smashes}</b> &nbsp;·&nbsp;
+      Tricks: <b>${t.tricks}</b> &nbsp;·&nbsp;
+      Bombs: <b>${t.bombs}</b>
+    `;
+    this.show('scr-over');
+  }
+
+  rematch() {
+    this.show(null);
+    if (this.mainGame.link) {
+      this.mainGame.link.send(TYPES.REMATCH, { nonce: Math.floor(Math.random() * 255) });
+    }
+    this.mainGame.score = [0, 0];
+    this.mainGame.serving = this.mainGame.side === 0;
+    this.mainGame.serve();
+  }
+
+  openPause() {
+    this.paused = true;
+    this.show('scr-pause');
+    const s = this.links[0] && this.links[0].stats;
+    if (s) {
+      $('#link-stats').textContent = `link: ${s.sent} sent · ${s.retries} retries · ${s.received} rx · ${s.acks} acks · ${s.drops} drops`;
+    }
+  }
+
+  quit() {
+    this.paused = false;
+    this.mode = 'title';
+    this.games = [];
+    this.links = [];
+    this.mainGame = null;
+    this.lobby = null;
+    if (this.air) this.air = null;
+    this.show('scr-title');
+  }
+
+  keepAwake() {
+    if ('wakeLock' in navigator && !this.wakeLock) {
+      navigator.wakeLock.request('screen').then((w) => { this.wakeLock = w; }).catch(() => {});
+    }
+  }
+
+  // ----------------------------------------------------------------- sim ---
+  // In-browser modem sim: two CPU players on two virtual phone canvases,
+  // talking through the real Chirp modem over synthetic audio.
+  startSim() {
+    document.body.classList.add('sim');
+    const root = $('#sim-root');
+    root.innerHTML = `
+      <div class="sim-phones">
+        <canvas id="c-peer" width="220" height="340" class="flip"></canvas>
+        <canvas id="c-self" width="220" height="340"></canvas>
+      </div>
+      <div id="sim-stats"></div>
+    `;
+    this.mode = 'sim';
+    this.clockT = 0;
+    const clock = () => this.clockT;
+
+    // A simulated acoustic room: delay, attenuation and reverberation.
+    const room = {
+      delays: [0.008, 0.018],
+      ring: [new Float32Array(48000), new Float32Array(48000)],
+      wpos: [0, 0],
+      feed(fromBand, samples, sr) {
+        // Feed into peer's mic with distance delay and a touch of room ring
+        const to = 1 - fromBand;
+        const d = Math.round(0.012 * sr);
+        const r = this.ring[to];
+        for (let i = 0; i < samples.length; i++) {
+          const p = (this.wpos[to] + i + d) % r.length;
+          r[p] += samples[i] * 0.7;
+        }
+      },
+    };
+
+    const d0 = new ChirpCore.Demodulator(48000);
+    const d1 = new ChirpCore.Demodulator(48000);
+
+    const makeModem = (side, demod) => ({
+      demod,
+      transmit(band, vals) {
+        const samples = ChirpCore.synthFrame(band, vals, 48000, { amp: 0.45, lead: 0.005, tail: 0.04 });
+        room.feed(band, samples, 48000);
+        const air = (PRE_SYMS + vals.length) * T_SYM;
+        return { t0: clock(), t1: clock() + air, airtime: air };
+      },
+    });
+
+    const t0 = new AudioTransport(makeModem(0, d0));
+    const t1 = new AudioTransport(makeModem(1, d1));
+    const l0 = new Link(t0, 0, clock);
+    const l1 = new Link(t1, 1, clock);
+    const lob0 = new Lobby(t0, clock);
+    const lob1 = new Lobby(t1, clock);
+
+    const cpu0 = new CpuController(0.85);
+    const cpu1 = new CpuController(0.85);
+
+    const c0 = $('#c-self'), c1 = $('#c-peer');
+    const g0 = new Game({ side: 0, link: l0, controller: cpu0, canvas: c0, target: 11, serving: true, labels: ['P1', 'P2'] });
+    const g1 = new Game({ side: 1, link: l1, controller: cpu1, canvas: c1, target: 11, serving: false, labels: ['P2', 'P1'] });
+
+    const ep0 = { lobby: lob0, link: l0, game: g0 };
+    const ep1 = { lobby: lob1, link: l1, game: g1 };
+    this.wire(t0, ep0);
+    this.wire(t1, ep1);
+
+    lob0.onPaired = () => g0.serve();
+    lob1.onPaired = () => {};
+    lob0.call(11);
+
+    this.sim = {
+      d0, d1, t0, t1, l0, l1, g0, g1, lob0, lob1, room, eps: [ep0, ep1],
+      c0, c1, samplePos: 0,
+    };
+    window.chirpSim = this.sim;
+    this.layoutSim();
+  }
+
+  layoutSim() {
+    if (!this.sim) return;
+    const { g0, g1, c0, c1 } = this.sim;
+    const viewFor = (c, g) => {
+      const s = c.width / 100;
+      g.view = { ox: 0, oy: 0, scale: s, dpr: 1, safeTop: 0, safeBottom: 0 };
+      g.setHeight(c.height / s);
+    };
+    viewFor(c0, g0);
+    viewFor(c1, g1);
+  }
+
+  simStats() {
+    const s = $('#sim-stats');
+    if (!s || !this.sim) return;
+    const { l0, l1, g0, g1, d0, d1 } = this.sim;
+    s.textContent = [
+      `TIME: ${this.clockT.toFixed(1)}s`,
+      `SCORE: ${g0.score[0]} – ${g0.score[1]}   RALLY: ${g0.rally}`,
+      ``,
+      `P1 LINK: ${l0.stats.sent} sent · ${l0.stats.retries} retries · ${l0.stats.received} rx · ${l0.stats.acks} acks`,
+      `P2 LINK: ${l1.stats.sent} sent · ${l1.stats.retries} retries · ${l1.stats.received} rx · ${l1.stats.acks} acks`,
+      ``,
+      `P1 DEMOD: ${d0.stats.syncs} syncs · ${d0.stats.frames} frames · ${d0.stats.crcFail} crcFail · ${d0.stats.retimed} retimed`,
+      `P2 DEMOD: ${d1.stats.syncs} syncs · ${d1.stats.frames} frames · ${d1.stats.crcFail} crcFail · ${d1.stats.retimed} retimed`,
+      ``,
+      `CROSSINGS: ${g0.totals.crossings}   SMASHES: ${g0.totals.smashes}`,
+    ].join('\n');
+  }
+
+  // ------------------------------------------------------------- loop ---
+  loop(t) {
+    requestAnimationFrame((n) => this.loop(n));
+    const dt = Math.min((t - this.last) / 1000, 1 / 30);
+    this.last = t;
+    try {
+      this.tick(dt);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  tick(dt) {
+    if (this.mode === 'sim') {
+      for (const ep of this.sim.eps) {
+        ep.lobby.update();
+        if (ep.link) ep.link.update();
+        if (ep.game) { ep.game.update(dt); ep.game.render(); }
+      }
+      this.simStats();
+      return;
+    }
+    if (!this.paused) {
+      this.clockT += dt;
+      if (this.air) this.air.update();
+      if (this.lobby) this.lobby.update();
+      for (const L of this.links) L.update();
+      if (this.mode === 'practice' && this.cpu) {
+        const g = this.mainGame;
+        this.cpu.skill = clamp(0.5 + 0.06 * (g.score[g.peer] - g.score[g.side]), 0.4, 0.95);
+      }
+      for (const g of this.games) g.update(dt);
+    }
+    if (this.mainGame) this.mainGame.render();
+    else if (this.mode === 'title' || this.mode === 'lobby') this.drawIdle(dt);
+    if (this.mode === 'lobby') this.drawMeter();
+  }
+
+  // Behind the menus: a ball bouncing between the two colours.
+  drawIdle(dt) {
+    const g = this.canvas.getContext('2d');
+    const W = this.canvas.width, H = this.canvas.height;
+    this.idleT = (this.idleT || 0) + dt;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#07051a';
+    g.fillRect(0, 0, W, H);
+  }
+
+  drawMeter() {
+    const c = $('#meter');
+    const g = c.getContext('2d');
+    const W = c.width, H = c.height;
+    g.clearRect(0, 0, W, H);
+    if (!this.modem) return;
+    const d = this.modem.demod;
+    const bw = W / 2 - 18;
+    for (let b = 0; b < 2; b++) {
+      const x0 = 12 + b * (W / 2);
+      const col = PLAYER_COLORS[b];
+      for (let k = 0; k < TONES; k++) {
+        const a = d.amp[b][k];
+        const db = clamp((20 * Math.log10(a + 1e-7) + 80) / 60, 0, 1);
+        g.fillStyle = k === SYNC ? '#ffffff' : col;
+        g.globalAlpha = 0.35 + 0.65 * db;
+        const bh = Math.max(2, db * (H - 30));
+        g.fillRect(x0 + (k * bw) / TONES, H - 18 - bh, bw / TONES - 2, bh);
+      }
+      g.globalAlpha = 1;
+      g.fillStyle = col;
+      g.font = '600 12px system-ui, sans-serif';
+      g.fillText(b === 0 ? 'b0 (caller) - ' + ChirpCore.getProfile() : 'b1 (answer)', x0, H - 4);
+    }
+    const heardRecently = this.ep && this.ep.heard && wallClock() - this.ep.heard < 1.5;
+    if (this.lobby && this.lobby.mode === 'call') {
+      this.status(`Calling… (${this.lobby.calls})  ${heardRecently ? '· hearing chirps' : ''}`);
+    } else if (this.lobby && this.lobby.mode === 'listen') {
+      this.status(heardRecently ? 'Heard a chirp…' : 'Listening for the other phone…');
+    }
+  }
+}
+
+const app = new App();
+window.chirpPong = app;
+</script>
 </body>
 </html>
